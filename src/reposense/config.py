@@ -15,7 +15,7 @@ class Config:
     github_token: str = field(default_factory=lambda: os.getenv("GITHUB_TOKEN", ""))
     google_api_key: str = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY", ""))
 
-    gemini_model: str = "gemini-2.5-flash-preview-04-17"
+    gemini_model: str = "gemini-2.5-flash"
 
     max_react_loops: int = 15
     max_tokens_per_analysis: int = 50_000

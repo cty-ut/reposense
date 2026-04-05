@@ -23,7 +23,8 @@ def test_github_api():
     print(f"   Lang:  {repo.language}")
     print(f"   Desc:  {repo.description[:80] if repo.description else 'N/A'}")
 
-    rate = g.get_rate_limit().core
+    rate_limit = g.get_rate_limit()
+    rate = getattr(rate_limit, "core", None) or rate_limit.rate
     print(f"   API rate limit: {rate.remaining}/{rate.limit}")
 
 

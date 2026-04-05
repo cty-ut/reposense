@@ -14,7 +14,7 @@ def test_gemini_api():
         return
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash-preview-04-17",
+        model="gemini-2.5-flash",
         google_api_key=api_key,
         temperature=0,
         max_output_tokens=100,
