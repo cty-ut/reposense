@@ -13,11 +13,9 @@ load_dotenv()
 @dataclass(frozen=True)
 class Config:
     github_token: str = field(default_factory=lambda: os.getenv("GITHUB_TOKEN", ""))
-    deepseek_api_key: str = field(default_factory=lambda: os.getenv("DEEPSEEK_API_KEY", ""))
-    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""))
+    google_api_key: str = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY", ""))
 
-    deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    gemini_model: str = "gemini-2.5-flash-preview-04-17"
 
     max_react_loops: int = 15
     max_tokens_per_analysis: int = 50_000
@@ -28,8 +26,8 @@ class Config:
         missing: list[str] = []
         if not self.github_token:
             missing.append("GITHUB_TOKEN")
-        if not self.deepseek_api_key:
-            missing.append("DEEPSEEK_API_KEY")
+        if not self.google_api_key:
+            missing.append("GOOGLE_API_KEY")
         return missing
 
 

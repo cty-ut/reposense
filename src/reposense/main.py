@@ -36,7 +36,7 @@ def check() -> None:
     console.print(
         Panel(
             "  [green]✓[/green] GITHUB_TOKEN\n"
-            "  [green]✓[/green] DEEPSEEK_API_KEY",
+            "  [green]✓[/green] GOOGLE_API_KEY",
             title="[bold green]Configuration OK[/bold green]",
             expand=False,
         )

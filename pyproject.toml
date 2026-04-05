@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "langgraph",
     "langchain-core",
-    "langchain-openai",
+    "langchain-google-genai",
     "PyGithub",
     "chromadb",
     "rich",
