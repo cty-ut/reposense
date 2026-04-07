@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "reposense": {
+      "command": "python",
+      "args": ["-m", "reposense.mcp_server"],
+      "cwd": ".",
+      "env": {}
+    }
+  }
+}

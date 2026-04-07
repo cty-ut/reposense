@@ -1,0 +1,335 @@
+{
+  "description": "RepoSense benchmark test set — 10 repos across languages and scales, with multi-turn Q&A scripts for coherence testing",
+  "repos": [
+    {
+      "name": "pallets/click",
+      "language": "Python",
+      "scale": "medium",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["src/click"],
+        "entry_points": ["src/click/__init__.py", "src/click/core.py"],
+        "key_modules": ["core.py", "decorators.py", "types.py", "parser.py", "utils.py"]
+      },
+      "questions": [
+        {
+          "q": "What is the main entry point of this project?",
+          "must_mention": ["src/click/core.py", "BaseCommand", "Group"]
+        },
+        {
+          "q": "How does Click handle command-line argument parsing?",
+          "must_mention": ["parser.py", "OptionParser"]
+        },
+        {
+          "q": "What decorators does Click provide and where are they defined?",
+          "must_mention": ["decorators.py", "@command", "@group", "@option", "@argument"]
+        },
+        {
+          "q": "How does Click handle different parameter types?",
+          "must_mention": ["types.py", "ParamType", "STRING", "INT"]
+        },
+        {
+          "q": "What is the Context class and what does it do?",
+          "must_mention": ["core.py", "Context"]
+        }
+      ]
+    },
+    {
+      "name": "encode/httpx",
+      "language": "Python",
+      "scale": "medium",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["httpx"],
+        "entry_points": ["httpx/__init__.py", "httpx/_client.py"],
+        "key_modules": ["_client.py", "_models.py", "_transports", "_api.py"]
+      },
+      "questions": [
+        {
+          "q": "How does httpx handle async HTTP requests?",
+          "must_mention": ["AsyncClient", "_client.py"]
+        },
+        {
+          "q": "What transport layer does httpx use?",
+          "must_mention": ["_transports", "httpcore"]
+        },
+        {
+          "q": "How are HTTP responses modeled?",
+          "must_mention": ["Response", "_models.py"]
+        },
+        {
+          "q": "What is the difference between Client and AsyncClient?",
+          "must_mention": ["Client", "AsyncClient", "_client.py"]
+        },
+        {
+          "q": "How does httpx handle redirects?",
+          "must_mention": ["follow_redirects", "_client.py"]
+        }
+      ]
+    },
+    {
+      "name": "langchain-ai/langgraph",
+      "language": "Python",
+      "scale": "large",
+      "expected": {
+        "project_type": "framework",
+        "core_directories": ["libs/langgraph"],
+        "entry_points": ["libs/langgraph/langgraph/graph/state.py"],
+        "key_modules": ["graph/state.py", "graph/graph.py", "pregel", "checkpoint"]
+      },
+      "questions": [
+        {
+          "q": "How do you define a state graph in LangGraph?",
+          "must_mention": ["StateGraph", "state.py"]
+        },
+        {
+          "q": "What is the Pregel execution model?",
+          "must_mention": ["pregel", "Pregel"]
+        },
+        {
+          "q": "How does checkpointing work?",
+          "must_mention": ["checkpoint", "BaseCheckpointSaver"]
+        },
+        {
+          "q": "What prebuilt components does LangGraph offer?",
+          "must_mention": ["prebuilt", "create_react_agent"]
+        },
+        {
+          "q": "How are conditional edges defined?",
+          "must_mention": ["add_conditional_edges", "graph"]
+        }
+      ]
+    },
+    {
+      "name": "pmndrs/zustand",
+      "language": "TypeScript",
+      "scale": "small",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["src"],
+        "entry_points": ["src/index.ts", "src/react.ts"],
+        "key_modules": ["vanilla.ts", "react.ts", "middleware"]
+      },
+      "questions": [
+        {
+          "q": "How does zustand create a store?",
+          "must_mention": ["create", "vanilla"]
+        },
+        {
+          "q": "How does zustand integrate with React?",
+          "must_mention": ["react.ts", "useSyncExternalStore"]
+        },
+        {
+          "q": "What middleware does zustand provide?",
+          "must_mention": ["middleware", "persist", "devtools"]
+        },
+        {
+          "q": "How is state subscribed to and updated?",
+          "must_mention": ["subscribe", "setState", "getState"]
+        },
+        {
+          "q": "What is the vanilla store and how is it different from the React store?",
+          "must_mention": ["vanilla", "createStore"]
+        }
+      ]
+    },
+    {
+      "name": "colinhacks/zod",
+      "language": "TypeScript",
+      "scale": "medium",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["src"],
+        "entry_points": ["src/index.ts"],
+        "key_modules": ["types.ts", "ZodType", "ZodString", "ZodObject"]
+      },
+      "questions": [
+        {
+          "q": "How does Zod define a schema?",
+          "must_mention": ["ZodType", "z.string", "z.object"]
+        },
+        {
+          "q": "How does validation work in Zod?",
+          "must_mention": ["parse", "safeParse"]
+        },
+        {
+          "q": "How does Zod handle error reporting?",
+          "must_mention": ["ZodError", "ZodIssue"]
+        },
+        {
+          "q": "What transformation features does Zod offer?",
+          "must_mention": ["transform", "refine"]
+        },
+        {
+          "q": "How does Zod infer TypeScript types from schemas?",
+          "must_mention": ["infer", "z.infer"]
+        }
+      ]
+    },
+    {
+      "name": "spf13/cobra",
+      "language": "Go",
+      "scale": "medium",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["."],
+        "entry_points": ["command.go", "cobra.go"],
+        "key_modules": ["command.go", "args.go", "completions.go"]
+      },
+      "questions": [
+        {
+          "q": "How do you create a command in Cobra?",
+          "must_mention": ["Command", "command.go"]
+        },
+        {
+          "q": "How does Cobra handle sub-commands?",
+          "must_mention": ["AddCommand", "parent", "children"]
+        },
+        {
+          "q": "How does Cobra handle flags and arguments?",
+          "must_mention": ["Flags", "PersistentFlags", "args.go"]
+        },
+        {
+          "q": "How does shell completion work?",
+          "must_mention": ["completions", "bash", "zsh"]
+        },
+        {
+          "q": "What is the Execute function?",
+          "must_mention": ["Execute", "command.go"]
+        }
+      ]
+    },
+    {
+      "name": "gin-gonic/gin",
+      "language": "Go",
+      "scale": "medium",
+      "expected": {
+        "project_type": "framework",
+        "core_directories": ["."],
+        "entry_points": ["gin.go"],
+        "key_modules": ["gin.go", "context.go", "routergroup.go", "tree.go"]
+      },
+      "questions": [
+        {
+          "q": "How does Gin handle HTTP routing?",
+          "must_mention": ["Engine", "routergroup", "tree"]
+        },
+        {
+          "q": "What is the Context object in Gin?",
+          "must_mention": ["Context", "context.go"]
+        },
+        {
+          "q": "How does middleware work in Gin?",
+          "must_mention": ["Use", "HandlersChain", "middleware"]
+        },
+        {
+          "q": "How does Gin handle JSON responses?",
+          "must_mention": ["JSON", "render", "Context"]
+        },
+        {
+          "q": "How is the radix tree used for routing?",
+          "must_mention": ["tree.go", "node", "radix"]
+        }
+      ]
+    },
+    {
+      "name": "fastapi/fastapi",
+      "language": "Python",
+      "scale": "large",
+      "expected": {
+        "project_type": "framework",
+        "core_directories": ["fastapi"],
+        "entry_points": ["fastapi/__init__.py", "fastapi/applications.py"],
+        "key_modules": ["applications.py", "routing.py", "dependencies", "params.py"]
+      },
+      "questions": [
+        {
+          "q": "How does FastAPI create an application?",
+          "must_mention": ["FastAPI", "applications.py"]
+        },
+        {
+          "q": "How does dependency injection work in FastAPI?",
+          "must_mention": ["Depends", "dependencies"]
+        },
+        {
+          "q": "How does FastAPI handle request validation?",
+          "must_mention": ["Pydantic", "BaseModel", "params"]
+        },
+        {
+          "q": "How does routing work internally?",
+          "must_mention": ["APIRouter", "routing.py"]
+        },
+        {
+          "q": "How does FastAPI generate OpenAPI documentation?",
+          "must_mention": ["openapi", "docs"]
+        }
+      ]
+    },
+    {
+      "name": "jestjs/jest",
+      "language": "TypeScript",
+      "scale": "large",
+      "expected": {
+        "project_type": "framework",
+        "core_directories": ["packages/jest-core", "packages/jest-runner"],
+        "entry_points": ["packages/jest-cli/src/index.ts"],
+        "key_modules": ["jest-core", "jest-runner", "jest-matcher-utils", "jest-config"]
+      },
+      "questions": [
+        {
+          "q": "How does Jest run test files?",
+          "must_mention": ["jest-runner", "TestRunner"]
+        },
+        {
+          "q": "How does Jest handle configuration?",
+          "must_mention": ["jest-config", "readConfig"]
+        },
+        {
+          "q": "How do matchers work in Jest?",
+          "must_mention": ["expect", "matchers"]
+        },
+        {
+          "q": "How does Jest handle mocking?",
+          "must_mention": ["jest-mock", "mock"]
+        },
+        {
+          "q": "What is the test lifecycle in Jest?",
+          "must_mention": ["beforeAll", "afterAll", "beforeEach", "describe"]
+        }
+      ]
+    },
+    {
+      "name": "tiangolo/sqlmodel",
+      "language": "Python",
+      "scale": "small",
+      "expected": {
+        "project_type": "library",
+        "core_directories": ["sqlmodel"],
+        "entry_points": ["sqlmodel/__init__.py", "sqlmodel/main.py"],
+        "key_modules": ["main.py", "sql/expression.py", "engine"]
+      },
+      "questions": [
+        {
+          "q": "How does SQLModel define a model?",
+          "must_mention": ["SQLModel", "main.py"]
+        },
+        {
+          "q": "How does SQLModel combine Pydantic and SQLAlchemy?",
+          "must_mention": ["SQLModel", "Pydantic", "SQLAlchemy"]
+        },
+        {
+          "q": "How does SQLModel handle database sessions?",
+          "must_mention": ["Session", "engine"]
+        },
+        {
+          "q": "How does the select function work?",
+          "must_mention": ["select", "expression"]
+        },
+        {
+          "q": "How does SQLModel handle relationships between tables?",
+          "must_mention": ["Relationship", "Field"]
+        }
+      ]
+    }
+  ]
+}

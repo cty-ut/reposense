@@ -185,13 +185,13 @@
 └───────────────────────┼───────────────┼────────────────────────┘
                         │               │
               ┌─────────▼─────────┐  ┌──▼───────────────┐
-              │    工具层（MCP）    │  │  知识层（RAG）     │
-              │                   │  │                   │
-              │ • GitHub API      │  │ • 向量数据库       │
-              │ • 文件读取         │  │   (ChromaDB)      │
-              │ • 代码解析 (AST)   │  │ • 代码嵌入         │
-              │                   │  │ • 语义检索         │
-              └───────────────────┘  └───────────────────┘
+              │    工具层（MCP）    │  │  知识层（RAG）              │
+              │                   │  │                          │
+              │ • GitHub API      │  │ • 向量数据库 (ChromaDB)    │
+              │ • 文件读取         │  │ • BM25 关键词索引          │
+              │ • 代码解析 (AST)   │  │ • 混合检索 + RRF Rerank   │
+              │                   │  │ • 语义 + 精确双路召回       │
+              └───────────────────┘  └──────────────────────────┘
 ```
 
 ### 3.2 核心数据流
@@ -207,8 +207,9 @@
     │                    ▼
     │               [分析节点] ──→ LLM 分析目录/代码 ──→ [输出节点] ──→ 全景报告
     │
-    ├── 问问题 ────→ [检索节点] ──→ 向量数据库语义检索
-    │                    │
+    ├── 问问题 ────→ [检索节点] ──→ 混合检索（向量语义 + BM25 关键词）
+    │                    │              ↓
+    │                    │         RRF Rerank 融合排序
     │                    ▼
     │               [分析节点] ──→ LLM 基于检索结果回答 ──→ [输出节点] ──→ 回答
     │
@@ -240,7 +241,7 @@ class RepoSenseState(TypedDict):
 | 组件 | 选型 | 为什么选它 | 对比过什么 |
 |------|------|-----------|-----------|
 | 编排框架 | **LangGraph** | 图状态机，流转控制最精确；支持条件分支和循环；有状态持久化 | CrewAI（太抽象，控制力不足）、AutoGen（偏对话模式，不适合工具密集场景） |
-| 大模型 | **DeepSeek V3** (主) / **Claude** (备) | DeepSeek 成本极低（约 ¥1/百万 token），代码理解能力强；Claude 作为备选保证质量 | GPT-4（贵）、通义千问（代码理解弱于 DeepSeek） |
+| 大模型 | **Gemini 2.5 Flash** (主) / **Claude** (备) | Gemini 2.5 Flash 性价比极高，代码理解能力强，上下文窗口大（100 万 token）；Claude 作为备选保证质量 | DeepSeek V3（API 稳定性不足）、GPT-4（贵）、通义千问（代码理解弱） |
 | 向量数据库 | **ChromaDB** | 嵌入式，无需运维，pip install 即用；对个人项目规模足够 | Qdrant（需要单独部署）、Pinecone（云服务，有成本） |
 | 代码获取 | **GitHub REST API** | 官方 API，稳定可靠，无需 clone 整个仓库 | git clone（太慢，占空间大）、GitHub GraphQL（复杂度过高） |
 | 代码解析 | **tree-sitter** | 支持几十种语言的 AST 解析，速度极快 | Python ast 模块（只支持 Python）、正则（不可靠） |
@@ -294,15 +295,17 @@ class RepoSenseState(TypedDict):
 具体任务：
 
 ```
-□ 2.1 代码索引系统（RAG）
+□ 2.1 代码索引系统（RAG + BM25 混合检索）
   - 实现代码分块策略（按函数/类切分，而非固定行数）
-  - 集成 Embedding 模型（text-embedding-3-small 或同级）
+  - 集成 Embedding 模型（ChromaDB 内置 all-MiniLM-L6-v2）
   - 将代码块向量化并存入 ChromaDB
-  - 实现语义检索：用户问题 → 相关代码片段
+  - 实现 BM25 关键词索引（rank_bm25），与向量索引同步构建
+  - 实现混合检索：向量语义召回 + BM25 关键词召回 → RRF 融合排序
+  - 语义检索擅长自然语言问题，BM25 擅长精确函数名/变量名查找
 
 □ 2.2 问答工作流
   - 在 LangGraph 中添加问答路径
-  - 实现检索节点：从向量数据库中检索相关代码
+  - 实现检索节点：混合检索（向量 + BM25）+ 直接读文件（read_file）
   - 实现回答节点：基于检索结果 + 问题生成回答
   - 回答中必须包含文件路径和代码引用
 
@@ -402,7 +405,7 @@ class RepoSenseState(TypedDict):
 - "对 10 个主流开源项目测试，架构描述准确度 85%+"
 - "平均理解时间从人工 6 小时缩短至 Agent 8 分钟"
 - "代码引用有效率 90%+，通过自动校验层消除幻觉"
-- "单次分析成本控制在 ¥2 以内（DeepSeek API）"
+- "单次分析成本控制在 ¥2 以内（Gemini API）"
 
 ---
 
@@ -413,7 +416,7 @@ class RepoSenseState(TypedDict):
 | GitHub API 速率限制（60 次/小时未认证） | 高 | 大型仓库扫描中断 | 使用 Personal Access Token（5000 次/小时）；实现请求缓存 |
 | 大型仓库超出 LLM 上下文窗口 | 高 | 无法一次性分析所有代码 | 分层扫描：先目录摘要 → 再核心文件深入；代码分块 + RAG 检索 |
 | LLM 幻觉（编造不存在的文件/函数） | 高 | 报告不可信 | 校验层强制检查每个引用；Prompt 明确要求"不确定时说不确定" |
-| DeepSeek API 不稳定 | 中 | 分析中断 | 配置备选模型（Claude）；实现自动降级切换 |
+| Gemini API 不稳定或限流 | 中 | 分析中断 | 配置备选模型（Claude）；实现自动降级切换 |
 | tree-sitter 对某些语言支持不完善 | 低 | 代码解析不准确 | 降级为基于正则的简单解析；第一版聚焦 Python/TS/Go |
 
 ---
@@ -443,8 +446,10 @@ reposense/
 │       │   └── code_parser.py     # 代码解析工具
 │       ├── rag/
 │       │   ├── __init__.py
-│       │   ├── indexer.py         # 代码向量化索引
-│       │   └── retriever.py       # 语义检索
+│       │   ├── indexer.py         # 代码向量化索引（ChromaDB）
+│       │   ├── bm25.py            # BM25 关键词索引
+│       │   ├── hybrid.py          # 混合检索 + RRF Rerank
+│       │   └── retriever.py       # 语义检索接口
 │       └── config.py              # 配置管理
 ├── tests/
 │   ├── test_github_api.py
@@ -466,7 +471,7 @@ reposense/
 # 核心框架
 langgraph                   # Agent 编排
 langchain-core              # LangChain 基础组件
-langchain-openai            # OpenAI 兼容 API 调用（DeepSeek 兼容 OpenAI 接口）
+langchain-google-genai      # Google Gemini API 调用
 
 # 数据获取与解析
 PyGithub                    # GitHub API 封装
@@ -474,8 +479,9 @@ tree-sitter                 # 代码 AST 解析
 tree-sitter-python          # Python 语法支持
 tree-sitter-javascript      # JavaScript/TypeScript 语法支持
 
-# RAG
+# RAG + 混合检索
 chromadb                    # 向量数据库
+rank-bm25                   # BM25 关键词检索
 
 # 用户界面
 rich                        # 终端美化输出

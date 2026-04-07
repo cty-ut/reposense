@@ -17,20 +17,20 @@
 上午：
   ☐ 创建 Python 项目结构（pyproject.toml / src / tests）
   ☐ 创建虚拟环境，安装核心依赖
-  ☐ 配置 .env（GitHub Token + DeepSeek API Key）
+  ☐ 配置 .env（GitHub Token + Google API Key）
   ☐ 配置 .gitignore，git init，首次提交
 
 下午：
   ☐ 写一个最简单的 LangGraph 图（2 个节点，1 条边），确认框架能跑通
   ☐ 写一个最简单的 GitHub API 调用，确认 Token 有效、能拿到数据
-  ☐ 写一个最简单的 DeepSeek API 调用，确认模型能响应
+  ☐ 写一个最简单的 Gemini API 调用，确认模型能响应
   ☐ 三个都跑通后，提交代码
 ```
 
 **Sprint 0 验收标准：**
 - `python -m reposense` 能运行不报错
 - GitHub API 能返回任意一个仓库的信息
-- DeepSeek 能返回一段文本
+- Gemini 能返回一段文本
 - 代码已提交到 Git
 
 **为什么要有 Sprint 0：**
@@ -197,9 +197,25 @@ Day 15（周五）：检索质量评估 + 本周小结
   ☐ 提交代码，写本周小结
 ```
 
+Day 15.5（追加）：BM25 关键词检索 + 混合检索 + RRF Rerank
+  ☐ 集成 rank-bm25 库，实现 BM25Searcher
+      - 对已切分的代码块构建 BM25 索引
+      - 支持精确关键词匹配（函数名、变量名、类名）
+  ☐ 实现 HybridRetriever：
+      - 同时调用向量检索（ChromaDB）和 BM25 检索
+      - 使用 Reciprocal Rank Fusion（RRF）合并两路结果
+      - 去重 + 按融合分数排序
+  ☐ 对比测试：
+      - 纯向量检索 vs 纯 BM25 vs 混合检索
+      - 测试用例覆盖：语义类问题 + 精确函数名问题
+      - 记录各策略命中率对比数据
+```
+
 **Sprint 3 验收标准：**
 - 代码库能在 2 分钟内完成索引
 - 语义检索对 10 个测试问题的命中率 ≥ 70%
+- 混合检索（向量 + BM25）整体命中率 ≥ 90%
+- 精确函数名/类名查询命中率 ≥ 90%（BM25 贡献）
 - AST 切分 vs 行切分的对比数据已记录
 - Python 和 TypeScript 文件均可正确切分和检索
 
@@ -327,7 +343,7 @@ Day 28（周三）：可观测性系统
   ☐ 实现执行报告输出
 
 Day 29（周四）：错误恢复 + 降级策略
-  ☐ 实现 LLM 降级切换：DeepSeek 不可用 → 自动切换 Claude
+  ☐ 实现 LLM 降级切换：Gemini 不可用 → 自动切换 Claude
   ☐ 实现全局错误恢复：任何节点失败 → 跳过并标注 → 继续执行
   ☐ 实现 Token 预算熔断：超出预算 → 停止分析 → 输出已有结果
   ☐ 压力测试：故意制造各种错误，验证恢复机制
@@ -342,7 +358,7 @@ Day 30（周五）：集成测试 + 本周小结
 **Sprint 6 验收标准：**
 - 所有工具通过 MCP 协议调用
 - 每次运行输出完整的执行报告（耗时、Token、成本）
-- DeepSeek 宕机时自动切换 Claude 且用户无感知
+- Gemini 宕机时自动切换 Claude 且用户无感知
 - 任何单点故障不会导致整体崩溃
 
 ---
