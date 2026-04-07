@@ -1,231 +1,272 @@
+<div align="center">
+
 # RepoSense
 
-**给一个 GitHub 仓库地址，几分钟内搞懂整个项目。**
+**Understand any open-source project in minutes, not hours.**
 
-RepoSense 是一个 AI Agent，能自动分析开源项目的架构、回答代码相关问题、引导你上手贡献。把"读源码"这件最痛苦的事变成一次对话。
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-purple.svg)](https://github.com/langchain-ai/langgraph)
+[![Gemini](https://img.shields.io/badge/LLM-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev/)
 
-## 核心功能
+给 RepoSense 一个 GitHub 仓库地址，它帮你在几分钟内搞懂项目架构、核心逻辑和贡献路径。
 
-### 1. 全景扫描 — `reposense analyze`
+把 **"读源码"** 这件最痛苦的事变成一次对话。
 
-输入一个 GitHub 仓库 URL，输出项目全景报告：
+[快速开始](#-快速开始) · [功能演示](#-核心功能) · [架构设计](#-架构) · [评测数据](#-评测数据) · [工作流文档](WORKFLOW.md)
 
-- 项目类型识别（Web 应用 / CLI / 库 / 框架）
-- 目录结构解读（每个目录的职责）
-- 入口文件定位 + 核心模块识别
-- 建议阅读顺序
+</div>
 
-```bash
-reposense analyze "https://github.com/pallets/click"
-```
+---
 
-### 2. 代码问答 — `reposense ask`
+## 🎯 解决什么问题
 
-对已扫描的仓库进行多轮对话式问答：
+面对一个陌生的开源项目：
 
-- ReAct Agent 循环：推理 → 搜索 → 阅读 → 回答
-- 混合检索：向量语义搜索 + BM25 关键词搜索 + RRF 融合
-- 防幻觉：每个文件路径引用自动校验真实存在
-- 多轮记忆：上下文跨轮次保持
+| 传统方式 | RepoSense |
+|---------|-----------|
+| 手动翻几百个文件猜结构 | **一条命令**输出全景报告 |
+| 在 GitHub 上逐文件搜索 | **自然语言对话**，Agent 自动检索 |
+| 看 Issue 不知道改哪个文件 | **自动关联代码**，按难度推荐 |
+| 通常需要 6-20 小时 | **不到 10 分钟** |
 
-```bash
-reposense ask "https://github.com/pallets/click"
-# You: Context 类是做什么的？
-# You: 命令行参数是怎么解析的？
-```
+---
 
-### 3. 贡献引导 — `reposense contribute`
+## ✨ 核心功能
 
-自动分析 Open Issues，生成贡献路线图：
-
-- 优先抓取 `good first issue` 等新手友好标签
-- LLM 分析每个 Issue 的难度、相关代码、修改建议
-- 按 🟢入门 / 🟡进阶 / 🔴挑战 分层输出
+### 1️⃣ 全景扫描
 
 ```bash
-reposense contribute "https://github.com/pallets/click"
+reposense analyze "https://github.com/tiangolo/sqlmodel"
 ```
 
-### 4. MCP Server — `reposense mcp-serve`
+> 3 分钟生成一份完整的项目架构报告：项目类型、目录职责、核心模块、入口文件、学习路径。
 
-通过 MCP 协议暴露工具，可被 Cursor / Claude Desktop 等客户端调用：
+### 2️⃣ 代码问答
+
+```bash
+reposense ask "https://github.com/tiangolo/sqlmodel"
+```
+
+> ReAct Agent 自动推理 → 搜索代码 → 阅读文件 → 回答问题。支持多轮对话，每个引用自动验证。
+
+```
+You: SQLModel 是怎么把 Pydantic 和 SQLAlchemy 结合在一起的？
+
+RepoSense: SQLModel 通过多重继承实现融合，核心在 `sqlmodel/main.py`：
+  1. SQLModel 类同时继承 BaseModel 和 DeclarativeMeta...
+  2. 在 `sqlmodel/_compat.py:45` 通过 __init_subclass__ 钩子...
+  (iterations=3, refs=4/4 valid)
+
+You: 那 Session 是怎么管理的？
+
+RepoSense: Session 管理在 `sqlmodel/engine/create.py` 中...
+```
+
+### 3️⃣ 贡献引导
+
+```bash
+reposense contribute "https://github.com/tiangolo/sqlmodel"
+```
+
+> 自动分析 Issue，生成按难度分级的贡献路线图，告诉你该改哪个文件、怎么开始。
+
+```
+🟢 入门级
+  Issue #789: 添加 UUID 字段默认值
+  相关文件: sqlmodel/main.py, sqlmodel/fields.py
+  建议: 参考现有 Field() 实现，添加 default_factory...
+
+🟡 进阶级
+  Issue #456: 支持异步 Session
+  ...
+```
+
+输出路线图后还能继续追问：`#789 能再详细说说吗？`
+
+### 4️⃣ MCP Server
 
 ```bash
 reposense mcp-serve
 ```
 
-## 架构
+> 通过 Model Context Protocol 暴露工具，可被 Claude Desktop / Cursor 等 AI 客户端直接调用。
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                      CLI (Click + Rich)                  │
-│               analyze / ask / contribute / mcp-serve     │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-┌────────────────────────▼─────────────────────────────────┐
-│                   LangGraph 编排引擎                      │
-│                                                          │
-│  路由 → 扫描 → 三级漏斗分析 → 报告       (全景扫描)      │
-│  路由 → ReAct Agent (推理→工具→观察)     (代码问答)      │
-│  获取Issue → 代码关联 → LLM分析 → 路线图 (贡献引导)      │
-└──────┬──────────────────────┬────────────────────────────┘
-       │                     │
-┌──────▼──────┐     ┌────────▼────────────────────────────┐
-│  工具层      │     │  知识层 (RAG)                        │
-│  GitHub API │     │  ChromaDB 向量索引 (all-MiniLM-L6-v2)│
-│  文件读取    │     │  BM25 关键词索引 (rank-bm25)         │
-│  代码解析    │     │  混合检索 + RRF Rerank               │
-│  MCP Server │     │  索引磁盘持久化 (~/.cache/reposense) │
-└─────────────┘     └─────────────────────────────────────┘
-       │
-┌──────▼──────┐     ┌─────────────────────────────────────┐
-│  LLM 层     │     │  可观测性                            │
-│  Gemini 主   │     │  Token 计数 + 成本计算               │
-│  Poe 备选    │     │  节点计时 + 执行报告                  │
-│  自动降级    │     │  Token 预算熔断                       │
-└─────────────┘     └─────────────────────────────────────┘
-```
+---
 
-## 技术栈
-
-| 层 | 技术 | 用途 |
-|----|------|------|
-| 编排 | LangGraph | 状态图工作流 + ReAct Agent |
-| 主 LLM | Gemini 2.5 Flash | 代码分析、问答（100 万 Token 上下文） |
-| 备 LLM | Poe (Claude-Sonnet-4) | Gemini 限流时自动降级 |
-| 数据获取 | PyGithub | GitHub REST API |
-| 代码解析 | tree-sitter | Python / JS / TS AST 语义切分 |
-| 向量数据库 | ChromaDB | 代码向量存储（磁盘持久化） |
-| Embedding | all-MiniLM-L6-v2 | 本地 CPU 嵌入（无需外部 API） |
-| 关键词检索 | rank-bm25 | 精确函数名 / 变量名匹配 |
-| 检索融合 | RRF | 向量 + BM25 双路结果合并 |
-| 工具协议 | MCP | 标准化工具暴露给外部客户端 |
-| CLI | Click + Rich | 命令行界面 + 终端美化 |
-
-## 快速开始
-
-### 1. 安装
+## 🚀 快速开始
 
 ```bash
-git clone https://github.com/your-username/reposense.git
-cd reposense
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
+# 安装
+git clone https://github.com/cty-ut/reposense.git && cd reposense
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
 
-### 2. 配置
-
-复制 `.env.example` 为 `.env`，填入 API Key：
-
-```bash
+# 配置（填入你的 API Key）
 cp .env.example .env
+
+# 验证
+reposense check
+
+# 开始使用
+reposense analyze "https://github.com/pallets/click"
 ```
+
+<details>
+<summary><b>📋 配置说明</b></summary>
+
+在 `.env` 中填入：
 
 ```env
-GITHUB_TOKEN=ghp_your_github_token
-GOOGLE_API_KEY=your_gemini_api_key      # 主 LLM
-POE_API_KEY=your_poe_api_key            # 备选 LLM（可选）
+GITHUB_TOKEN=ghp_xxxx              # 必填
+GOOGLE_API_KEY=AIzaSy...           # 主力 LLM (Gemini 2.5 Flash)
+POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动降级)
 ```
 
 至少需要 `GITHUB_TOKEN` + 一个 LLM API Key。
 
-### 3. 验证配置
+</details>
+
+---
+
+## 📊 评测数据
+
+基于 `tiangolo/sqlmodel` 的完整评测（[查看报告](eval/results/eval_20260407_030720.md)）：
+
+| 指标 | 结果 | 目标 |
+|------|------|------|
+| 项目类型准确率 | **100%** | ≥ 85% |
+| 核心目录召回率 | **100%** | ≥ 70% |
+| Q&A 关键词命中率 | **86%** | ≥ 80% |
+| 文件引用有效率 | **100%** | ≥ 90% |
+| 幻觉率 | **0%** | ≤ 10% |
+| 鲁棒性通过率 | **100%** | ≥ 90% |
+| 多轮对话连贯率 | **100%** | ≥ 80% |
+| 贡献引导文件引用 | **100%** | ≥ 80% |
+
+| 效率指标 | 数值 |
+|---------|------|
+| 全景扫描 | ~3.5 分钟 |
+| Q&A 单次回答 | 5-10 秒 |
+| 索引冷启动 | ~30 秒 |
+| 索引热加载 | **0.1 秒**（加速 585x） |
+| 单次分析成本 | ~$0.04（约 ¥0.28） |
+
+<details>
+<summary><b>🧪 自己跑评测</b></summary>
 
 ```bash
-reposense check
+# 快速评测（单仓库）
+.venv/bin/python eval/full_evaluation.py --repos sqlmodel
+
+# 指定其他仓库
+.venv/bin/python eval/full_evaluation.py --repos click
+
+# 只跑某个维度
+.venv/bin/python eval/full_evaluation.py --only qa,robustness
 ```
 
-### 4. 使用
+评测覆盖 5 个维度：质量、效率、鲁棒性、多轮连贯、贡献引导。报告保存在 `eval/results/`。
 
-```bash
-# 全景扫描
-reposense analyze "https://github.com/pallets/click"
+</details>
 
-# 代码问答
-reposense ask "https://github.com/pallets/click"
+---
 
-# 贡献引导
-reposense contribute "https://github.com/pallets/click"
+## 🏗 架构
 
-# 详细日志
-reposense -v analyze "https://github.com/pallets/click"
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     CLI (Click + Rich)                       │
+│              analyze  /  ask  /  contribute  /  mcp-serve    │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│                    LangGraph 编排引擎                         │
+│                                                              │
+│  全景扫描:  路由 → 扫描 → 三级漏斗分析 → 报告                 │
+│  代码问答:  ReAct Agent (推理 → 工具调用 → 观察 → 回答)       │
+│  贡献引导:  获取Issue → 代码关联 → LLM分析 → 路线图           │
+└────────┬─────────────────────────┬──────────────────────────┘
+         │                        │
+┌────────▼────────┐    ┌──────────▼──────────────────────────┐
+│    工具层        │    │   知识层 (RAG)                       │
+│  · GitHub API   │    │  · ChromaDB 向量索引                 │
+│  · 文件读取      │    │  · BM25 关键词索引                   │
+│  · tree-sitter  │    │  · RRF 混合检索 + Rerank             │
+│  · MCP Server   │    │  · 磁盘持久化缓存                    │
+└────────┬────────┘    └─────────────────────────────────────┘
+         │
+┌────────▼────────┐    ┌─────────────────────────────────────┐
+│    LLM 层       │    │   可观测性                           │
+│  · Gemini (主)  │    │  · Token 计数 + 成本追踪             │
+│  · Poe (备)     │    │  · 速率限制冷却                      │
+│  · 自动降级     │    │  · Token 预算熔断                    │
+│  · 60s 冷却     │    │  · 幻觉校验 (否认检测)               │
+└─────────────────┘    └─────────────────────────────────────┘
 ```
 
-## 评估数据
+---
 
-基于 10 个不同规模和语言的开源项目（Click, httpx, LangGraph, Zustand, Zod, Cobra, Gin, FastAPI, Jest, SQLModel）进行自动化评估：
+## 🔑 设计亮点
 
-| 指标 | 结果 |
-|------|------|
-| Q&A 关键词命中率 | 80% |
-| 文件引用有效率 | 100% |
-| 防幻觉拦截 | 校验层自动标注无效引用 |
+| 设计 | 方案 | 为什么 |
+|------|------|--------|
+| **三级漏斗分析** | 目录级 → 文件级 → 函数级，逐层深入 | 大仓库不可能一次全读，先粗后细控制 Token |
+| **混合检索 + RRF** | 向量语义搜索 + BM25 关键词搜索 | 向量擅长理解意图，BM25 擅长精确匹配，互补 |
+| **Zipball 加速** | 一次性下载仓库压缩包，替代逐文件 API | 索引构建从 10 分钟缩短到 30 秒 |
+| **双 LLM 降级** | Gemini → Poe，60 秒冷却机制 | 免费额度用完自动切换，不中断分析 |
+| **两层反幻觉** | Prompt 约束 + 后验路径校验 | LLM 会编造文件路径，必须双重保障 |
+| **索引持久化** | ChromaDB + BM25 pickle 缓存到磁盘 | 首次 30 秒，再次 0.1 秒 |
 
-运行评估：
+---
 
-```bash
-python eval/benchmark.py --repos click --max-questions 3
-```
+## 📁 项目结构
 
-## 项目结构
+<details>
+<summary><b>展开查看</b></summary>
 
 ```
 src/reposense/
-├── main.py              # CLI 入口 (analyze/ask/contribute/mcp-serve)
-├── config.py            # 配置管理
-├── llm.py               # LLM 双通道 + 自动降级 + Token 预算
-├── metrics.py           # 可观测性 (计时/Token/成本/报告)
-├── mcp_server.py        # MCP Server (6 个标准化工具)
-├── graph/
-│   ├── state.py         # RepoSenseState 状态定义
-│   ├── builder.py       # LangGraph 图构建
-│   ├── qa_graph.py      # QAEngine (ReAct + 索引 + 记忆)
-│   ├── contribute.py    # ContributeEngine (贡献引导)
-│   └── nodes/
-│       ├── router.py    # 意图路由
-│       ├── scanner.py   # GitHub 数据获取
-│       ├── analyzer.py  # 三级漏斗 LLM 分析
-│       ├── reporter.py  # 报告生成
-│       ├── verifier.py  # 幻觉校验层
-│       └── contributor.py # Issue 分析 + 路线图
-├── tools/
-│   ├── github_api.py    # GitHub API 封装
-│   ├── code_parser.py   # tree-sitter 代码切分
-│   └── qa_tools.py      # Agent 工具
-└── rag/
-    ├── indexer.py        # ChromaDB 向量索引
-    ├── retriever.py      # 向量检索
-    ├── bm25.py           # BM25 关键词检索
-    └── hybrid.py         # 混合检索 + RRF Rerank
+├── main.py                 # CLI 入口
+├── config.py               # 配置管理
+├── llm.py                  # LLM 双通道 + 自动降级 + Token 预算
+├── metrics.py              # 可观测性
+├── mcp_server.py           # MCP Server
+├── graph/                  # LangGraph 工作流
+│   ├── state.py            # 状态定义
+│   ├── builder.py          # 全景扫描图
+│   ├── qa_graph.py         # ReAct Q&A 引擎
+│   ├── contribute.py       # 贡献引导引擎
+│   └── nodes/              # 图节点
+│       ├── router.py       # 意图路由
+│       ├── scanner.py      # GitHub 数据采集
+│       ├── analyzer.py     # 三级漏斗 LLM 分析
+│       ├── reporter.py     # 报告生成
+│       ├── verifier.py     # 幻觉校验
+│       └── contributor.py  # Issue 分析 + 路线图
+├── rag/                    # 检索增强生成
+│   ├── indexer.py          # ChromaDB 向量索引
+│   ├── retriever.py        # 向量检索
+│   ├── bm25.py             # BM25 关键词检索
+│   └── hybrid.py           # 混合检索 + RRF Rerank
+└── tools/                  # 工具层
+    ├── github_api.py       # GitHub API (含 zipball 下载)
+    ├── code_parser.py      # tree-sitter 代码切分
+    └── qa_tools.py         # Agent 工具定义
 ```
 
-## 测试
+</details>
 
-```bash
-# 运行所有单元测试 (87 cases)
-pytest tests/ -v
+---
 
-# 运行特定模块的测试
-pytest tests/test_github_api.py -v
-pytest tests/test_bm25.py -v
-pytest tests/test_verifier.py -v
-pytest tests/test_mcp_server.py -v
-pytest tests/test_metrics.py -v
+## 📖 文档
 
-# 运行 live 集成测试（需要 API Key）
-pytest tests/test_contribute_live.py -v -s
-```
+- **[WORKFLOW.md](WORKFLOW.md)** — 完整工作流文档（架构详解、数据流、使用指南）
+- **[PRD.md](PRD.md)** — 产品需求文档
+- **[DEVPLAN.md](DEVPLAN.md)** — 开发排期（7 个 Sprint）
+- **[PROGRESS.md](PROGRESS.md)** — 开发日志
 
-## 设计决策
-
-| 决策 | 选了什么 | 为什么 |
-|------|---------|--------|
-| 三级漏斗 vs 一次全读 | 三级漏斗 | 大仓库 Token 不可控；先粗后细成本低 |
-| 向量检索 vs BM25 | 混合 + RRF | 向量擅长语义，BM25 擅长精确符号，互补 |
-| 内存 vs 磁盘索引 | ChromaDB PersistentClient | 首次建索引慢，后续秒加载 |
-| 单一 LLM vs 多 LLM | 双通道 + 自动降级 | Gemini 免费额度有限，Poe 兜底 |
-| 直接调用 vs MCP | 两套并存 | 内部直接调用性能好，MCP 对外暴露扩展性好 |
+---
 
 ## License
 
