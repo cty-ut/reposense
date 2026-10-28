@@ -1,0 +1,946 @@
+{
+  "repo": "pallets/click",
+  "commit": "2247b35ea1c47c727d7a06e51fa280e12a863ff6",
+  "issue": {
+    "number": 3652,
+    "title": "Automatically append ellipsis (`...`) to metavars when `multiple=True` in options",
+    "url": "https://github.com/pallets/click/issues/3652",
+    "labels": [
+      "help output"
+    ]
+  },
+  "status": "ok",
+  "plan": {
+    "summary": "Issue #3652 希望 `multiple=True` 的选项在 help 输出中带上 `...`（如 `--foo TEXT...`），以提示该选项可重复。当前 `Parameter.make_metavar` 只在 `nargs != 1` 时追加 `...`，`Option` 的 help 左列由 `Option.get_help_spec` 经 `_write_opts` 调用 `make_metavar` 生成，因此 `multiple=True` 时没有任何标记。最小改动是在 `Parameter.make_metavar` 中把 `multiple` 也视为“多值”条件，并补一个测试与 CHANGES 条目。注意维护者在 issue 评论中（davidism、kdeldycke）对自动加 `...` 持保留意见，认为应留给可定制 formatter，因此提交前需先确认方向。",
+    "changes": [
+      {
+        "file": "src/click/core.py",
+        "start_line": 2620,
+        "end_line": 2632,
+        "anchor": "        if self.nargs != 1:",
+        "what": "把条件改为 `if self.nargs != 1 or self.multiple:`，并加一行注释说明 `...` 表示“每次出现取多个值（nargs）或选项可重复（multiple）”。",
+        "why": "这是 `Option` 生成 metavar 的唯一路径：`Option.get_help_spec`（core.py:3558-3588）中的 `_write_opts` 在 core.py:3578 调用 `self.make_metavar(ctx=ctx)`，而 `Option` 未覆盖 `make_metavar`，所以只改基类即可同时影响 help 左列与 usage 片段。`Argument` 有自己的 `make_metavar`（core.py:3944-3961），用 `nargs=-1` 表达重复，不受影响。",
+        "confidence": "medium"
+      },
+      {
+        "file": "tests/test_options.py",
+        "start_line": 78,
+        "end_line": 99,
+        "anchor": "def test_help_spec(param_decls, kwargs, hidden, expected):",
+        "what": "在 `test_help_spec` 的参数化列表（第 80-85 行）中新增一行 `([\"--foo\"], {\"multiple\": True}, \"--foo TEXT...\")`，复用已有的 `get_help_spec` / `get_help_record` 断言。",
+        "why": "该测试已同时校验 `get_help_spec(ctx)` 与 `get_help_record(ctx)[0]`（第 94、99 行），是覆盖 help 左列最直接的位置；现有参数化里 `([\"--config\"], {}, \"--config TEXT\")` 说明 TEXT 是默认 metavar。",
+        "confidence": "high"
+      },
+      {
+        "file": "CHANGES.md",
+        "start_line": 3,
+        "end_line": 21,
+        "anchor": "Unreleased",
+        "what": "在 8.6.0 的 Unreleased 列表末尾加一条：`multiple=True` 的选项在 help 中显示 `...`（如 `--foo TEXT...`），引用 {issue}`3652`。",
+        "why": "CHANGES.md 第 1-21 行是当前开发版本的变更列表，条目格式为 `- 描述 {pr}`/`{issue}` 引用，与第 9-21 行的既有条目一致。",
+        "confidence": "high"
+      }
+    ],
+    "tests": [
+      {
+        "file": "tests/test_options.py",
+        "command": "python -m pytest tests/test_options.py -k help_spec",
+        "why": "验证新增的 `multiple=True` 参数化用例，以及原有 `--config TEXT` 等用例不回归。"
+      },
+      {
+        "file": "tests/test_options.py",
+        "command": "python -m pytest tests/test_options.py tests/test_arguments.py tests/test_help.py",
+        "why": "确认 help 左列与 usage 输出相关测试（含 Argument 的 `[FOO]...` 用例）全部通过；pyproject.toml 第 83-91 行配置 testpaths=[\"tests\"]、addopts=\"-m 'not stress'\"。"
+      }
+    ],
+    "related_prs": [
+      {
+        "number": 3725,
+        "relevance": "已关闭的同类尝试，直接在 `Parameter.make_metavar` 中加 `or self.multiple`，并更新 CHANGES.md 与 tests/test_options.py。",
+        "review_notes": [
+          "该 PR 被标记为 AI junk 并关闭，未合并，说明维护者尚未接受这一方向。",
+          "其改动位置（基类 make_metavar）与本计划一致，可作为实现参考。"
+        ],
+        "title": "AI junk",
+        "url": "https://github.com/pallets/click/pull/3725",
+        "author": "Cyriellewu",
+        "merged_at": ""
+      },
+      {
+        "number": 3775,
+        "relevance": "另一已关闭的尝试，改为在 `_write_opts` 中追加 `...`，只影响 help 左列而不影响 usage 片段。",
+        "review_notes": [
+          "同样被关闭为 AI junk，无实质 review 意见。",
+          "两种实现位置（make_metavar vs _write_opts）的取舍需维护者确认。"
+        ],
+        "title": "AI junk",
+        "url": "https://github.com/pallets/click/pull/3775",
+        "author": "karandhaodiyal28-hash",
+        "merged_at": ""
+      }
+    ],
+    "reviewers": [
+      {
+        "login": "davidism",
+        "why": "在 issue #3652 评论中明确表示 `...` 不是“选项需重复”的好指示，倾向留给未来的可定制 formatter。"
+      },
+      {
+        "login": "kdeldycke",
+        "why": "在 issue 评论中指出 `--foo TEXT...` 语义有歧义（多个值 vs 多次出现），并建议先调研 POSIX/GNU 约定与 formatter 形态。"
+      }
+    ],
+    "conventions": [
+      "测试放在 tests/ 下，用 pytest 运行（pyproject.toml 第 83-91 行：testpaths=[\"tests\"]，filterwarnings=[\"error\"]）。",
+      "行为变更需在 CHANGES.md 的 Unreleased 段落加条目，并用 {issue}`N` / {pr}`N` 引用（见 CHANGES.md 第 5-21 行）。",
+      "help 左列相关测试集中在 tests/test_options.py 的 test_help_spec 与 tests/test_arguments.py 的 test_spec_and_help_spec，新增用例应复用这些参数化结构。"
+    ],
+    "open_questions": [
+      "维护者在 issue 中倾向不自动加 `...`，而是等可定制 formatter；是否应先获得 maintainer 同意再实现？",
+      "若实现，`...` 应只出现在 help 左列（改 `_write_opts`，PR #3775 方案）还是也出现在 usage 片段（改 `Parameter.make_metavar`，PR #3725 方案）？",
+      "显式传入 `metavar` 时是否也应追加 `...`？当前 `make_metavar` 在 `self.metavar is not None` 时直接返回，不会追加。"
+    ],
+    "dropped": []
+  },
+  "history": {
+    "src/click/core.py": [
+      {
+        "start": 2617,
+        "end": 2618,
+        "sha": "9f0bcdf0d8",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-02",
+        "summary": "Add `Parameter.spec` and deprecate `human_readable_name`",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2619,
+        "end": 2619,
+        "sha": "64f57fea3a",
+        "author": "Armin Ronacher",
+        "date": "2015-03-31",
+        "summary": "Refactor missing parameter handling.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2620,
+        "end": 2620,
+        "sha": "4ece17a107",
+        "author": "Andreas Backx",
+        "date": "2025-01-12",
+        "summary": "Expand `Choice` token normalization + make generic (#2796)",
+        "pr": 2796,
+        "pr_title": null,
+        "pr_url": "https://github.com/pallets/click/pull/2796"
+      },
+      {
+        "start": 2621,
+        "end": 2622,
+        "sha": "4101de3daf",
+        "author": "Armin Ronacher",
+        "date": "2014-04-24",
+        "summary": "Initial commit",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2623,
+        "end": 2623,
+        "sha": "0103c95706",
+        "author": "David Lord",
+        "date": "2021-04-24",
+        "summary": "add typing annotations",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2624,
+        "end": 2624,
+        "sha": "4ece17a107",
+        "author": "Andreas Backx",
+        "date": "2025-01-12",
+        "summary": "Expand `Choice` token normalization + make generic (#2796)",
+        "pr": 2796,
+        "pr_title": null,
+        "pr_url": "https://github.com/pallets/click/pull/2796"
+      },
+      {
+        "start": 2625,
+        "end": 2625,
+        "sha": "0103c95706",
+        "author": "David Lord",
+        "date": "2021-04-24",
+        "summary": "add typing annotations",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2626,
+        "end": 2627,
+        "sha": "5e86fcf7d8",
+        "author": "Armin Ronacher",
+        "date": "2014-05-07",
+        "summary": "Improved formatting of help pages slightly",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2628,
+        "end": 2628,
+        "sha": "0103c95706",
+        "author": "David Lord",
+        "date": "2021-04-24",
+        "summary": "add typing annotations",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2629,
+        "end": 2629,
+        "sha": "4101de3daf",
+        "author": "Armin Ronacher",
+        "date": "2014-04-24",
+        "summary": "Initial commit",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2630,
+        "end": 2630,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2631,
+        "end": 2631,
+        "sha": "0103c95706",
+        "author": "David Lord",
+        "date": "2021-04-24",
+        "summary": "add typing annotations",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2632,
+        "end": 2633,
+        "sha": "4101de3daf",
+        "author": "Armin Ronacher",
+        "date": "2014-04-24",
+        "summary": "Initial commit",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2634,
+        "end": 2634,
+        "sha": "1e561ec5d6",
+        "author": "Angus L'Herrou",
+        "date": "2021-10-14",
+        "summary": "remove duplicate typing imports",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 2635,
+        "end": 2635,
+        "sha": "15959d92fd",
+        "author": "David Lord",
+        "date": "2024-03-23",
+        "summary": "update dev dependencies",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ],
+    "tests/test_options.py": [
+      {
+        "start": 75,
+        "end": 77,
+        "sha": "82f377c547",
+        "author": "Kevin Deldycke",
+        "date": "2026-05-23",
+        "summary": "Fix deprecated label formatting",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 78,
+        "end": 101,
+        "sha": "271effb3d9",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-01",
+        "summary": "Add `Option.get_help_spec` to return the option's help left part",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 102,
+        "end": 102,
+        "sha": "9f0bcdf0d8",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-02",
+        "summary": "Add `Parameter.spec` and deprecate `human_readable_name`",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ],
+    "CHANGES.md": [
+      {
+        "start": 1,
+        "end": 4,
+        "sha": "a59f7c624f",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-22",
+        "summary": "Start 8.6.0.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 5,
+        "end": 8,
+        "sha": "b90faad178",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-11",
+        "summary": "Deprecate a parameter name that Click 9.0 will refuse or lower case",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 9,
+        "end": 21,
+        "sha": "9f0bcdf0d8",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-02",
+        "summary": "Add `Parameter.spec` and deprecate `human_readable_name`",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 22,
+        "end": 22,
+        "sha": "b90faad178",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-11",
+        "summary": "Deprecate a parameter name that Click 9.0 will refuse or lower case",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 23,
+        "end": 24,
+        "sha": "f58ca3e814",
+        "author": "Kevin Deldycke",
+        "date": "2026-08-29",
+        "summary": "Fix `copy`, `deepcopy` and `pickle` of `Sentinel` members",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ]
+  },
+  "trace": [
+    {
+      "step": 1,
+      "tool": "ls",
+      "args": {
+        "directory": "."
+      },
+      "summary": "15 entries"
+    },
+    {
+      "step": 1,
+      "tool": "grep",
+      "args": {
+        "pattern": "def get_help_record|def make_metavar|def get_usage_pieces",
+        "path": "src/click"
+      },
+      "summary": "7 matches in 1 files: src/click/core.py"
+    },
+    {
+      "step": 1,
+      "tool": "search_prs",
+      "args": {
+        "query": "multiple metavar ellipsis"
+      },
+      "summary": "2 results: #3775 AI junk"
+    },
+    {
+      "step": 1,
+      "tool": "search_issues",
+      "args": {
+        "query": "multiple=True metavar ellipsis usage"
+      },
+      "summary": "1 results: #3652 Automatically append ellipsis (`...`) to metavars "
+    },
+    {
+      "step": 2,
+      "tool": "read",
+      "args": {
+        "path": "src/click/core.py",
+        "start_line": 3930,
+        "end_line": 4010
+      },
+      "summary": "src/click/core.py lines 3930-4010 of 4038"
+    },
+    {
+      "step": 2,
+      "tool": "read",
+      "args": {
+        "path": "src/click/core.py",
+        "start_line": 2600,
+        "end_line": 2650
+      },
+      "summary": "src/click/core.py lines 2600-2650 of 4038"
+    },
+    {
+      "step": 2,
+      "tool": "get_pr",
+      "args": {
+        "number": 3775
+      },
+      "summary": "#3775 AI junk (1 review notes)"
+    },
+    {
+      "step": 2,
+      "tool": "get_pr",
+      "args": {
+        "number": 3725
+      },
+      "summary": "#3725 AI junk (0 review notes)"
+    },
+    {
+      "step": 3,
+      "tool": "read",
+      "args": {
+        "end_line": 3620,
+        "path": "src/click/core.py",
+        "start_line": 3560
+      },
+      "summary": "src/click/core.py lines 3560-3620 of 4038"
+    },
+    {
+      "step": 3,
+      "tool": "grep",
+      "args": {
+        "path": "src/click/core.py",
+        "pattern": "def _write_opts|def get_usage_pieces|def get_help_spec"
+      },
+      "summary": "6 matches in 1 files: src/click/core.py"
+    },
+    {
+      "step": 3,
+      "tool": "git_log",
+      "args": {
+        "path": "src/click/core.py",
+        "max_count": 15
+      },
+      "summary": "15 commits, latest: Add `Parameter.spec` and deprecate `human_readable_name`"
+    },
+    {
+      "step": 4,
+      "tool": "read",
+      "args": {
+        "end_line": 3560,
+        "path": "src/click/core.py",
+        "start_line": 3540
+      },
+      "summary": "src/click/core.py lines 3540-3560 of 4038"
+    },
+    {
+      "step": 4,
+      "tool": "read",
+      "args": {
+        "end_line": 3030,
+        "path": "src/click/core.py",
+        "start_line": 3010
+      },
+      "summary": "src/click/core.py lines 3010-3030 of 4038"
+    },
+    {
+      "step": 4,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "multiple=True",
+        "file_glob": "test_options.py"
+      },
+      "summary": "16 matches in 1 files: tests/test_options.py"
+    },
+    {
+      "step": 4,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "TEXT\\.\\.\\.|\\.\\.\\.  "
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 5,
+      "tool": "read",
+      "args": {
+        "end_line": 320,
+        "path": "tests/test_options.py",
+        "start_line": 280
+      },
+      "summary": "tests/test_options.py lines 280-320 of 3945"
+    },
+    {
+      "step": 5,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "make_metavar|get_help_spec"
+      },
+      "summary": "5 matches in 2 files: tests/test_arguments.py, tests/test_options.py"
+    },
+    {
+      "step": 5,
+      "tool": "grep",
+      "args": {
+        "path": "CHANGES.md",
+        "pattern": "Unreleased"
+      },
+      "summary": "2 matches in 1 files: CHANGES.md"
+    },
+    {
+      "step": 6,
+      "tool": "read",
+      "args": {
+        "end_line": 100,
+        "path": "tests/test_options.py",
+        "start_line": 60
+      },
+      "summary": "tests/test_options.py lines 60-100 of 3945"
+    },
+    {
+      "step": 6,
+      "tool": "read",
+      "args": {
+        "end_line": 40,
+        "path": "CHANGES.md",
+        "start_line": 1
+      },
+      "summary": "CHANGES.md lines 1-40 of 1707"
+    },
+    {
+      "step": 6,
+      "tool": "git_blame",
+      "args": {
+        "path": "src/click/core.py",
+        "start_line": 3558,
+        "end_line": 3588
+      },
+      "summary": "19 blocks, PRs [2796]"
+    },
+    {
+      "step": 7,
+      "tool": "grep",
+      "args": {
+        "path": "src/click/core.py",
+        "pattern": "self\\.multiple"
+      },
+      "summary": "12 matches in 1 files: src/click/core.py"
+    },
+    {
+      "step": 7,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--arg TEXT|--arg INTEGER|--arg PATH"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 7,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "\\[OPTIONS\\]|Usage:",
+        "file_glob": "test_options.py"
+      },
+      "summary": "4 matches in 1 files: tests/test_options.py"
+    },
+    {
+      "step": 8,
+      "tool": "read",
+      "args": {
+        "end_line": 2410,
+        "path": "tests/test_options.py",
+        "start_line": 2360
+      },
+      "summary": "tests/test_options.py lines 2360-2410 of 3945"
+    },
+    {
+      "step": 8,
+      "tool": "read",
+      "args": {
+        "end_line": 3370,
+        "path": "src/click/core.py",
+        "start_line": 3355
+      },
+      "summary": "src/click/core.py lines 3355-3370 of 4038"
+    },
+    {
+      "step": 9,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "multiple=True",
+        "file_glob": "test_*.py"
+      },
+      "summary": "26 matches in 4 files: tests/test_arguments.py, tests/test_defaults.py, tests/test_options.py"
+    },
+    {
+      "step": 9,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "TEXT\\b.*\\n.*A list|--foo TEXT"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 10,
+      "tool": "read",
+      "args": {
+        "end_line": 530,
+        "path": "tests/test_options.py",
+        "start_line": 470
+      },
+      "summary": "tests/test_options.py lines 470-530 of 3945"
+    },
+    {
+      "step": 10,
+      "tool": "read",
+      "args": {
+        "end_line": 1800,
+        "path": "tests/test_options.py",
+        "start_line": 1760
+      },
+      "summary": "tests/test_options.py lines 1760-1800 of 3945"
+    },
+    {
+      "step": 11,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "TEXT\\.\\.\\.|INTEGER\\.\\.\\.|PATH\\.\\.\\.|CHOICE\\.\\.\\."
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 11,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "nargs=2",
+        "file_glob": "test_options.py"
+      },
+      "summary": "3 matches in 1 files: tests/test_options.py"
+    },
+    {
+      "step": 12,
+      "tool": "read",
+      "args": {
+        "end_line": 1000,
+        "path": "tests/test_options.py",
+        "start_line": 965
+      },
+      "summary": "tests/test_options.py lines 965-1000 of 3945"
+    },
+    {
+      "step": 12,
+      "tool": "grep",
+      "args": {
+        "path": "pyproject.toml",
+        "pattern": "pytest|testpaths|addopts"
+      },
+      "summary": "13 matches in 1 files: pyproject.toml"
+    },
+    {
+      "step": 13,
+      "tool": "read",
+      "args": {
+        "end_line": 95,
+        "path": "pyproject.toml",
+        "start_line": 80
+      },
+      "summary": "pyproject.toml lines 80-95 of 231"
+    },
+    {
+      "step": 13,
+      "tool": "grep",
+      "args": {
+        "path": "docs",
+        "pattern": "multiple=True"
+      },
+      "summary": "3 matches in 2 files: docs/options.md, docs/parameter-types.md"
+    },
+    {
+      "step": 14,
+      "tool": "read",
+      "args": {
+        "end_line": 250,
+        "path": "docs/options.md",
+        "start_line": 210
+      },
+      "summary": "docs/options.md lines 210-250 of 800"
+    },
+    {
+      "step": 15,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--message TEXT|--item |--arg TEXT"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 15,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "get_help_record\\(ctx\\)\\[0\\]|get_help_spec\\(ctx\\) =="
+      },
+      "summary": "5 matches in 2 files: tests/test_arguments.py, tests/test_options.py"
+    },
+    {
+      "step": 16,
+      "tool": "read",
+      "args": {
+        "end_line": 890,
+        "path": "tests/test_arguments.py",
+        "start_line": 860
+      },
+      "summary": "tests/test_arguments.py lines 860-890 of 1229"
+    },
+    {
+      "step": 17,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--foo TEXT|--config TEXT|--arg TEXT|--message TEXT"
+      },
+      "summary": "1 matches in 1 files: tests/test_options.py"
+    },
+    {
+      "step": 17,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "multiple",
+        "file_glob": "test_help.py"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 18,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "TEXT\\.\\.\\.|INTEGER\\.\\.\\.|\\.\\.\\.  "
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 18,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "nargs=2|nargs=-1",
+        "file_glob": "test_help.py"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 19,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "\\.\\.\\.",
+        "file_glob": "test_*.py"
+      },
+      "summary": "51 matches in 7 files: tests/test_arguments.py, tests/test_basic.py, tests/test_chain.py"
+    },
+    {
+      "step": 20,
+      "tool": "read",
+      "args": {
+        "end_line": 830,
+        "path": "tests/test_arguments.py",
+        "start_line": 805
+      },
+      "summary": "tests/test_arguments.py lines 805-830 of 1229"
+    },
+    {
+      "step": 21,
+      "tool": "read",
+      "args": {
+        "end_line": 845,
+        "path": "tests/test_arguments.py",
+        "start_line": 830
+      },
+      "summary": "tests/test_arguments.py lines 830-845 of 1229"
+    },
+    {
+      "step": 22,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--arg INTEGER|--arg PATH|--arg FLOAT|--arg1 INTEGER|--arg2 INTEGER"
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 22,
+      "tool": "read",
+      "args": {
+        "end_line": 660,
+        "path": "tests/test_options.py",
+        "start_line": 640
+      },
+      "summary": "tests/test_options.py lines 640-660 of 3945"
+    },
+    {
+      "step": 23,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--item |--message |--arg "
+      },
+      "summary": "0 matches in 0 files"
+    },
+    {
+      "step": 24,
+      "tool": "grep",
+      "args": {
+        "path": "tests",
+        "pattern": "--item|--message"
+      },
+      "summary": "4 matches in 1 files: tests/test_options.py"
+    },
+    {
+      "step": 25,
+      "tool": "submit_plan",
+      "args": {
+        "summary": "Issue #3652 希望 `multiple=True` 的选项在 help 输出中带上 `...`（如 `--foo TEXT...`），以提示该选项可重复。当前 `Parameter.make_metavar` 只在 `nargs != 1` 时追加 `...`，`Option` 的 help 左列由 `Option.get_help_spec` 经 `_write_opts` 调用 `make_metavar` 生成，因此 `multiple=True` 时没有任何标记。最小改动是在 `Parameter.make_metavar` 中把 `multiple` 也视为“多值”条件，并补一个测试与 CHANGES 条目。注意维护者在 issue 评论中（davidism、kdeldycke）对自动加 `...` 持保留意见，认为应留给可定制 formatter，因此提交前需先确认方向。",
+        "changes": [
+          {
+            "file": "src/click/core.py",
+            "start_line": 2620,
+            "end_line": 2632,
+            "anchor": "        if self.nargs != 1:",
+            "what": "把条件改为 `if self.nargs != 1 or self.multiple:`，并加一行注释说明 `...` 表示“每次出现取多个值（nargs）或选项可重复（multiple）”。",
+            "why": "这是 `Option` 生成 metavar 的唯一路径：`Option.get_help_spec`（core.py:3558-3588）中的 `_write_opts` 在 core.py:3578 调用 `self.make_metavar(ctx=ctx)`，而 `Option` 未覆盖 `make_metavar`，所以只改基类即可同时影响 help 左列与 usage 片段。`Argument` 有自己的 `make_metavar`（core.py:3944-3961），用 `nargs=-1` 表达重复，不受影响。",
+            "confidence": "medium"
+          },
+          {
+            "file": "tests/test_options.py",
+            "start_line": 78,
+            "end_line": 99,
+            "anchor": "def test_help_spec(param_decls, kwargs, hidden, expected):",
+            "what": "在 `test_help_spec` 的参数化列表（第 80-85 行）中新增一行 `([\"--foo\"], {\"multiple\": True}, \"--foo TEXT...\")`，复用已有的 `get_help_spec` / `get_help_record` 断言。",
+            "why": "该测试已同时校验 `get_help_spec(ctx)` 与 `get_help_record(ctx)[0]`（第 94、99 行），是覆盖 help 左列最直接的位置；现有参数化里 `([\"--config\"], {}, \"--config TEXT\")` 说明 TEXT 是默认 metavar。",
+            "confidence": "high"
+          },
+          {
+            "file": "CHANGES.md",
+            "start_line": 3,
+            "end_line": 21,
+            "anchor": "Unreleased",
+            "what": "在 8.6.0 的 Unreleased 列表末尾加一条：`multiple=True` 的选项在 help 中显示 `...`（如 `--foo TEXT...`），引用 {issue}`3652`。",
+            "why": "CHANGES.md 第 1-21 行是当前开发版本的变更列表，条目格式为 `- 描述 {pr}`/`{issue}` 引用，与第 9-21 行的既有条目一致。",
+            "confidence": "high"
+          }
+        ],
+        "tests": [
+          {
+            "file": "tests/test_options.py",
+            "command": "python -m pytest tests/test_options.py -k help_spec",
+            "why": "验证新增的 `multiple=True` 参数化用例，以及原有 `--config TEXT` 等用例不回归。"
+          },
+          {
+            "file": "tests/test_options.py",
+            "command": "python -m pytest tests/test_options.py tests/test_arguments.py tests/test_help.py",
+            "why": "确认 help 左列与 usage 输出相关测试（含 Argument 的 `[FOO]...` 用例）全部通过；pyproject.toml 第 83-91 行配置 testpaths=[\"tests\"]、addopts=\"-m 'not stress'\"。"
+          }
+        ],
+        "related_prs": [
+          {
+            "number": 3725,
+            "relevance": "已关闭的同类尝试，直接在 `Parameter.make_metavar` 中加 `or self.multiple`，并更新 CHANGES.md 与 tests/test_options.py。",
+            "review_notes": [
+              "该 PR 被标记为 AI junk 并关闭，未合并，说明维护者尚未接受这一方向。",
+              "其改动位置（基类 make_metavar）与本计划一致，可作为实现参考。"
+            ]
+          },
+          {
+            "number": 3775,
+            "relevance": "另一已关闭的尝试，改为在 `_write_opts` 中追加 `...`，只影响 help 左列而不影响 usage 片段。",
+            "review_notes": [
+              "同样被关闭为 AI junk，无实质 review 意见。",
+              "两种实现位置（make_metavar vs _write_opts）的取舍需维护者确认。"
+            ]
+          }
+        ],
+        "reviewers": [
+          {
+            "login": "davidism",
+            "why": "在 issue #3652 评论中明确表示 `...` 不是“选项需重复”的好指示，倾向留给未来的可定制 formatter。"
+          },
+          {
+            "login": "kdeldycke",
+            "why": "在 issue 评论中指出 `--foo TEXT...` 语义有歧义（多个值 vs 多次出现），并建议先调研 POSIX/GNU 约定与 formatter 形态。"
+          }
+        ],
+        "conventions": [
+          "测试放在 tests/ 下，用 pytest 运行（pyproject.toml 第 83-91 行：testpaths=[\"tests\"]，filterwarnings=[\"error\"]）。",
+          "行为变更需在 CHANGES.md 的 Unreleased 段落加条目，并用 {issue}`N` / {pr}`N` 引用（见 CHANGES.md 第 5-21 行）。",
+          "help 左列相关测试集中在 tests/test_options.py 的 test_help_spec 与 tests/test_arguments.py 的 test_spec_and_help_spec，新增用例应复用这些参数化结构。"
+        ],
+        "open_questions": [
+          "维护者在 issue 中倾向不自动加 `...`，而是等可定制 formatter；是否应先获得 maintainer 同意再实现？",
+          "若实现，`...` 应只出现在 help 左列（改 `_write_opts`，PR #3775 方案）还是也出现在 usage 片段（改 `Parameter.make_metavar`，PR #3725 方案）？",
+          "显式传入 `metavar` 时是否也应追加 `...`？当前 `make_metavar` 在 `self.metavar is not None` 时直接返回，不会追加。"
+        ]
+      },
+      "summary": "accepted"
+    }
+  ],
+  "run": {
+    "model": "deepseek-chat",
+    "use_history": true,
+    "steps": 25,
+    "tool_calls": 52,
+    "tokens": 503785,
+    "cached_tokens": 446208,
+    "seconds": 58.4,
+    "stop_reason": "submitted",
+    "plan_rejections": 0
+  }
+}

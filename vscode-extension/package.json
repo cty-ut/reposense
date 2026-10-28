@@ -1,0 +1,122 @@
+{
+  "name": "reposense",
+  "displayName": "RepoSense",
+  "description": "From a GitHub issue to your first merged PR: where to change, what changed before, and what reviewers expect.",
+  "version": "0.1.0",
+  "publisher": "cty-ut",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cty-ut/reposense"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:reposense.plan"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "reposense.analyzeIssue",
+        "title": "Analyze Issue",
+        "category": "RepoSense",
+        "icon": "$(play)"
+      },
+      {
+        "command": "reposense.openResult",
+        "title": "Open Saved Result (JSON)",
+        "category": "RepoSense"
+      },
+      {
+        "command": "reposense.showPanel",
+        "title": "Show Details Panel",
+        "category": "RepoSense",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "reposense.clear",
+        "title": "Clear Annotations",
+        "category": "RepoSense",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "reposense",
+          "title": "RepoSense",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "reposense": [
+        {
+          "id": "reposense.plan",
+          "name": "Contribution Plan"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "reposense.plan",
+        "contents": "Pick an issue in this repository and RepoSense will find where to change, what changed there before, and what reviewers expect.\n[Analyze Issue](command:reposense.analyzeIssue)\n[Open Saved Result](command:reposense.openResult)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "reposense.analyzeIssue",
+          "when": "view == reposense.plan",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reposense.showPanel",
+          "when": "view == reposense.plan",
+          "group": "navigation@2"
+        },
+        {
+          "command": "reposense.clear",
+          "when": "view == reposense.plan",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "RepoSense",
+      "properties": {
+        "reposense.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Python interpreter that has the `reposense` package installed."
+        },
+        "reposense.language": {
+          "type": "string",
+          "default": "Chinese",
+          "description": "Language of the generated plan."
+        },
+        "reposense.useHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "Let the agent read git history, related PRs and review comments."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}

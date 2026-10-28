@@ -5,31 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "reposense"
 version = "0.1.0"
-description = "AI Agent that helps developers understand open-source projects"
+description = "Agent that turns a GitHub issue into a verified contribution plan for first-time contributors"
 requires-python = ">=3.11"
 dependencies = [
-    "langgraph",
-    "langchain-core",
-    "langchain-google-genai",
-    "langchain-openai",
-    "PyGithub",
-    "tree-sitter",
-    "tree-sitter-python",
-    "tree-sitter-javascript",
-    "tree-sitter-typescript",
-    "chromadb",
-    "rank-bm25",
-    "mcp<2",  # mcp 2.x removed Server.list_tools() used by mcp_server.py
-    "rich",
+    "openai>=1.40",
+    "httpx",
     "click",
+    "rich",
     "python-dotenv",
-    "pydantic",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "pytest-asyncio",
 ]
 
 [project.scripts]

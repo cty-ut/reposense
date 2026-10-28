@@ -1,250 +1,86 @@
-<div align="center">
-
 # RepoSense
 
-**Understand any open-source project in minutes, not hours.**
+**帮开源新手完成第一次贡献：从一个 Issue 出发，告诉你该改哪里、这段代码以前怎么改过、维护者在意什么。**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-purple.svg)](https://github.com/langchain-ai/langgraph)
-[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-blue.svg)](https://platform.deepseek.com/)
+Claude Code、Cursor 这类通用编程 Agent 擅长读懂*当前的代码*。但新手第一次贡献时，最缺的往往是代码里看不到的东西：
 
-给 RepoSense 一个 GitHub 仓库地址，它帮你在几分钟内搞懂项目架构、核心逻辑和贡献路径。
+- 这行代码是哪个 PR 引入的？当时为什么这么写？
+- 维护者 review 类似改动时提过什么要求？
+- 这个 Issue 维护者到底同不同意做？
+- 改完该跑哪些测试、找谁 review？
 
-把 **"读源码"** 这件最痛苦的事变成一次对话。
+RepoSense 把这些信息从 git 历史、PR 讨论和 review 意见里找出来，连同具体的修改位置，一起标注在 VS Code 里你正在看的代码上。
 
-[快速开始](#-快速开始) · [功能演示](#-核心功能) · [架构设计](#-架构) · [评测数据](#-评测数据) · [工作流文档](WORKFLOW.md)
+## 工作方式
 
-</div>
+```
+VS Code 扩展 (TypeScript)                     Python Agent (reposense)
+├─ 侧边栏：贡献计划                ◄── JSON ──  ├─ 代码探索：glob / grep / read / ls
+├─ 代码行标注：建议修改 + 历史 PR      事件流     ├─ 项目历史：git log / blame / PR 与 review / Issue 搜索
+└─ 面板：Agent 实时轨迹 + PR 时间线              └─ 引用校验：不通过就退回给 Agent 修正
+```
 
----
+- **不建索引，直接探索代码。** 参考 Claude Code 的做法：Agent 在本地仓库里用 grep、glob 定位，只读需要的行范围。没有向量库，代码切换到任何版本都能直接搜。
+- **差异化在项目历史。** `git blame` 找到目标代码出自哪个 PR，再读这个 PR 的讨论和 review 意见，提炼出新手应该遵守的约定。
+- **引用必须经过校验。** Agent 提交计划时，代码会逐条核对：
+  - 引用的行号要存在；
+  - 引用的原文要和文件对得上；
+  - 那段代码 Agent 必须真的读过；
+  - 提到的 PR 必须真的查过；
+  - 推荐的 reviewer 必须在查到的数据里出现过。
 
-## 🎯 解决什么问题
+  任何一条不通过，都会带着错误信息退回给 Agent 修正。最终仍无法通过的条目会被删掉，并单独列出，不会混进计划里。
+- **限制写在代码里，不只写在提示词里。** 轮数上限、工具调用上限、token 预算、重复调用检测，都由代码强制执行。上下文平时只追加，以便命中模型服务端的前缀缓存；超过阈值时才压缩旧的工具结果。
 
-面对一个陌生的开源项目：
+## 快速开始
 
-| 传统方式 | RepoSense |
-|---------|-----------|
-| 手动翻几百个文件猜结构 | **一条命令**输出全景报告 |
-| 在 GitHub 上逐文件搜索 | **自然语言对话**，Agent 自动检索 |
-| 看 Issue 不知道改哪个文件 | **自动关联代码**，按难度推荐 |
-| 通常需要 6-20 小时 | **不到 10 分钟** |
-
----
-
-## ✨ 核心功能
-
-### 1️⃣ 全景扫描
+需要 Python 3.11+、git，最好也装上 [ripgrep](https://github.com/BurntSushi/ripgrep)（没装时自动改用 `git grep`）。
 
 ```bash
-reposense analyze "https://github.com/tiangolo/sqlmodel"
-```
-
-> 3 分钟生成一份完整的项目架构报告：项目类型、目录职责、核心模块、入口文件、学习路径。
-
-### 2️⃣ 代码问答
-
-```bash
-reposense ask "https://github.com/tiangolo/sqlmodel"
-```
-
-> ReAct Agent 自动推理 → 搜索代码 → 阅读文件 → 回答问题。支持多轮对话，每个引用自动验证。
-
-```
-You: SQLModel 是怎么把 Pydantic 和 SQLAlchemy 结合在一起的？
-
-RepoSense: SQLModel 通过多重继承实现融合，核心在 `sqlmodel/main.py`：
-  1. SQLModel 类同时继承 BaseModel 和 DeclarativeMeta...
-  2. 在 `sqlmodel/_compat.py:45` 通过 __init_subclass__ 钩子...
-  (iterations=3, refs=4/4 valid)
-
-You: 那 Session 是怎么管理的？
-
-RepoSense: Session 管理在 `sqlmodel/engine/create.py` 中...
-```
-
-### 3️⃣ 贡献引导
-
-```bash
-reposense contribute "https://github.com/tiangolo/sqlmodel"
-```
-
-> 自动分析 Issue，生成按难度分级的贡献路线图，告诉你该改哪个文件、怎么开始。
-
-```
-🟢 入门级
-  Issue #789: 添加 UUID 字段默认值
-  相关文件: sqlmodel/main.py, sqlmodel/fields.py
-  建议: 参考现有 Field() 实现，添加 default_factory...
-
-🟡 进阶级
-  Issue #456: 支持异步 Session
-  ...
-```
-
-输出路线图后还能继续追问：`#789 能再详细说说吗？`
-
-### 4️⃣ MCP Server
-
-```bash
-reposense mcp-serve
-```
-
-> 通过 Model Context Protocol 暴露工具，可被 Claude Desktop / Cursor 等 AI 客户端直接调用。
-
----
-
-## 🚀 快速开始
-
-```bash
-# 安装
 git clone https://github.com/cty-ut/reposense.git && cd reposense
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
-
-# 配置（填入你的 API Key）
-cp .env.example .env
-
-# 验证
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+cp .env.example .env   # 填写 GITHUB_TOKEN 和 DEEPSEEK_API_KEY
 reposense check
-
-# 开始使用
-reposense analyze "https://github.com/pallets/click"
 ```
 
-<details>
-<summary><b>📋 配置说明</b></summary>
-
-在 `.env` 中填入：
-
-```env
-GITHUB_TOKEN=ghp_xxxx              # 必填
-DEEPSEEK_API_KEY=sk-...            # 主力 LLM (deepseek-chat)
-GOOGLE_API_KEY=AIzaSy...           # 备用 LLM (可选，Gemini 2.5 Flash)
-POE_API_KEY=xxx                    # 备用 LLM (可选)
-```
-
-至少需要 `GITHUB_TOKEN` + 一个 LLM API Key。多个 Key 同时配置时按 DeepSeek → Gemini → Poe 的顺序使用，前一个限流时自动降级。
-
-</details>
-
----
-
-## 📊 评测数据
-
-评测待使用 DeepSeek 重新运行，结果出来后更新。
+### 命令行
 
 ```bash
-# 快速评测（单仓库）
-.venv/bin/python eval/full_evaluation.py --repos sqlmodel
+# 自动克隆仓库到 ~/.cache/reposense，生成贡献计划
+reposense plan https://github.com/pallets/click/issues/3652
 
-# 指定其他仓库
-.venv/bin/python eval/full_evaluation.py --repos click
+# 使用已有的本地仓库；保存完整结果
+reposense plan https://github.com/pallets/click/issues/3652 --repo-path ../click --out plan.json
 
-# 只跑某个维度
-.venv/bin/python eval/full_evaluation.py --only qa,robustness
+# 对照组：关闭项目历史工具，只做代码探索
+reposense plan <issue-url> --no-history
 ```
 
-评测覆盖 5 个维度：质量、效率、鲁棒性、多轮连贯、贡献引导。报告保存在 `eval/results/`。
+### VS Code 扩展
 
----
-
-## 🏗 架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     CLI (Click + Rich)                       │
-│              analyze  /  ask  /  contribute  /  mcp-serve    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                    LangGraph 编排引擎                         │
-│                                                              │
-│  全景扫描:  路由 → 扫描 → 三级漏斗分析 → 报告                 │
-│  代码问答:  ReAct Agent (推理 → 工具调用 → 观察 → 回答)       │
-│  贡献引导:  获取Issue → 代码关联 → LLM分析 → 路线图           │
-└────────┬─────────────────────────┬──────────────────────────┘
-         │                        │
-┌────────▼────────┐    ┌──────────▼──────────────────────────┐
-│    工具层        │    │   知识层 (RAG)                       │
-│  · GitHub API   │    │  · ChromaDB 向量索引                 │
-│  · 文件读取      │    │  · BM25 关键词索引                   │
-│  · tree-sitter  │    │  · RRF 混合检索 + Rerank             │
-│  · MCP Server   │    │  · 磁盘持久化缓存                    │
-└────────┬────────┘    └─────────────────────────────────────┘
-         │
-┌────────▼────────┐    ┌─────────────────────────────────────┐
-│    LLM 层       │    │   可观测性                           │
-│  · DeepSeek (主)│    │  · Token 计数 + 成本追踪             │
-│  · Gemini/Poe(备)│   │  · 速率限制冷却                      │
-│  · 自动降级     │    │  · Token 预算熔断                    │
-│  · 60s 冷却     │    │  · 幻觉校验 (否认检测)               │
-└─────────────────┘    └─────────────────────────────────────┘
+```bash
+cd vscode-extension
+npm install && npm run compile
+npx vsce package --allow-missing-repository --skip-license
+code --install-extension reposense-0.1.0.vsix
 ```
 
----
+1. 在 VS Code 里打开你想贡献的仓库。
+2. 在设置里把 `reposense.pythonPath` 设为装了 reposense 的 Python 解释器。
+3. 点左侧活动栏的 RepoSense 图标，选 **Analyze Issue**，输入 Issue 编号。
 
-## 🔑 设计亮点
+## 当前状态
 
-| 设计 | 方案 | 为什么 |
-|------|------|--------|
-| **三级漏斗分析** | 目录级 → 文件级 → 函数级，逐层深入 | 大仓库不可能一次全读，先粗后细控制 Token |
-| **混合检索 + RRF** | 向量语义搜索 + BM25 关键词搜索 | 向量擅长理解意图，BM25 擅长精确匹配，互补 |
-| **Zipball 加速** | 一次性下载仓库压缩包，替代逐文件 API | 索引构建从 10 分钟缩短到 30 秒 |
-| **多 LLM 降级** | DeepSeek → Gemini → Poe，60 秒冷却机制 | 限流或额度用完自动切换，不中断分析 |
-| **两层反幻觉** | Prompt 约束 + 后验路径校验 | LLM 会编造文件路径，必须双重保障 |
-| **索引持久化** | ChromaDB + BM25 pickle 缓存到磁盘 | 首次 30 秒，再次 0.1 秒 |
+- [x] 代码探索与项目历史工具、Agent 循环、引用校验
+- [x] VS Code 扩展：侧边栏计划、代码行标注、悬停详情、实时轨迹面板
+- [ ] 评测：用历史上已关闭的 Issue 及其修复 PR 作为标准答案，比较开启和关闭历史工具时的文件命中率
+- [ ] 支持 DeepSeek 以外的模型
 
----
+## 开发
 
-## 📁 项目结构
-
-<details>
-<summary><b>展开查看</b></summary>
-
-```
-src/reposense/
-├── main.py                 # CLI 入口
-├── config.py               # 配置管理
-├── llm.py                  # 多 LLM 通道 + 自动降级 + Token 预算
-├── metrics.py              # 可观测性
-├── mcp_server.py           # MCP Server
-├── graph/                  # LangGraph 工作流
-│   ├── state.py            # 状态定义
-│   ├── builder.py          # 全景扫描图
-│   ├── qa_graph.py         # ReAct Q&A 引擎
-│   ├── contribute.py       # 贡献引导引擎
-│   └── nodes/              # 图节点
-│       ├── router.py       # 意图路由
-│       ├── scanner.py      # GitHub 数据采集
-│       ├── analyzer.py     # 三级漏斗 LLM 分析
-│       ├── reporter.py     # 报告生成
-│       ├── verifier.py     # 幻觉校验
-│       └── contributor.py  # Issue 分析 + 路线图
-├── rag/                    # 检索增强生成
-│   ├── indexer.py          # ChromaDB 向量索引
-│   ├── retriever.py        # 向量检索
-│   ├── bm25.py             # BM25 关键词检索
-│   └── hybrid.py           # 混合检索 + RRF Rerank
-└── tools/                  # 工具层
-    ├── github_api.py       # GitHub API (含 zipball 下载)
-    ├── code_parser.py      # tree-sitter 代码切分
-    └── qa_tools.py         # Agent 工具定义
+```bash
+pytest            # 离线测试：用临时 git 仓库和脚本化的假模型，不需要网络和 API Key
 ```
 
-</details>
-
----
-
-## 📖 文档
-
-- **[WORKFLOW.md](WORKFLOW.md)** — 完整工作流文档（架构详解、数据流、使用指南）
-- **[PRD.md](PRD.md)** — 产品需求文档
-- **[DEVPLAN.md](DEVPLAN.md)** — 开发排期（7 个 Sprint）
-- **[PROGRESS.md](PROGRESS.md)** — 开发日志
-
----
-
-## License
-
-MIT
+License: MIT
