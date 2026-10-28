@@ -66,6 +66,8 @@ class Session:
 
     def repo_open(self, path: str, lang: str = "Chinese") -> dict:
         ws = Workspace.from_path(path)
+        if self.ws is not None and self.ws.root == ws.root and self.lang == lang:
+            return {"repo": ws.repo, "root": str(ws.root), "head": ws.head()}  # already open: keep clients
         self.ws, self.lang = ws, lang
         self.cache = JsonCache(ws.repo)
         if self.gh is not None:
@@ -109,6 +111,7 @@ METHODS = {
     "repo.structure": "repo_structure", "file.history": "file_history", "commit.detail": "commit_detail",
     "file.insight": "file_insight", "file.opportunities": "file_opportunities", "issue.plan": "issue_plan",
 }
+SEQUENTIAL = {"repo.open"}  # handled in order on the reader thread, never concurrently with other requests
 
 
 class Server:
@@ -162,7 +165,13 @@ class Server:
             except json.JSONDecodeError:
                 self._send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}})
                 continue
-            self.pool.submit(self._run, msg)
+            if not isinstance(msg, dict):
+                self._send({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid request"}})
+                continue
+            if msg.get("method") in SEQUENTIAL:
+                self._run(msg)  # changes session state: later requests must see the result
+            else:
+                self.pool.submit(self._run, msg)
         self.pool.shutdown(wait=True)
 
 

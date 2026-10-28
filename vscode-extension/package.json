@@ -1,8 +1,8 @@
 {
   "name": "reposense",
   "displayName": "RepoSense",
-  "description": "From a GitHub issue to your first merged PR: where to change, what changed before, and what reviewers expect.",
-  "version": "0.1.0",
+  "description": "Map an open-source repository, see how each file evolved through PRs, and find your first contribution.",
+  "version": "0.2.0",
   "publisher": "cty-ut",
   "license": "MIT",
   "repository": {
@@ -13,78 +13,45 @@
     "vscode": "^1.90.0"
   },
   "categories": [
+    "Visualization",
     "Other"
   ],
   "activationEvents": [
-    "onView:reposense.plan"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "RepoSense runs git and a local Python backend on the repository."
+    }
+  },
   "contributes": {
     "commands": [
-      {
-        "command": "reposense.analyzeIssue",
-        "title": "Analyze Issue",
-        "category": "RepoSense",
-        "icon": "$(play)"
-      },
-      {
-        "command": "reposense.openResult",
-        "title": "Open Saved Result (JSON)",
-        "category": "RepoSense"
-      },
-      {
-        "command": "reposense.showPanel",
-        "title": "Show Details Panel",
-        "category": "RepoSense",
-        "icon": "$(preview)"
-      },
-      {
-        "command": "reposense.clear",
-        "title": "Clear Annotations",
-        "category": "RepoSense",
-        "icon": "$(clear-all)"
-      }
+      { "command": "reposense.start", "title": "Open a GitHub Repository…", "category": "RepoSense", "icon": "$(repo-clone)" },
+      { "command": "reposense.openMap", "title": "Show Repository Map", "category": "RepoSense", "icon": "$(type-hierarchy)" },
+      { "command": "reposense.refreshMap", "title": "Re-analyze Repository Structure", "category": "RepoSense" },
+      { "command": "reposense.setKeys", "title": "Set API Keys", "category": "RepoSense" },
+      { "command": "reposense.restartBackend", "title": "Restart Backend", "category": "RepoSense" },
+      { "command": "reposense.showCommit", "title": "Show Commit Details", "category": "RepoSense" }
     ],
     "viewsContainers": {
       "activitybar": [
-        {
-          "id": "reposense",
-          "title": "RepoSense",
-          "icon": "media/icon.svg"
-        }
+        { "id": "reposense", "title": "RepoSense", "icon": "media/icon.svg" }
       ]
     },
     "views": {
       "reposense": [
-        {
-          "id": "reposense.plan",
-          "name": "Contribution Plan"
-        }
+        { "id": "reposense.file", "name": "File Insights", "type": "webview" }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "reposense.plan",
-        "contents": "Pick an issue in this repository and RepoSense will find where to change, what changed there before, and what reviewers expect.\n[Analyze Issue](command:reposense.analyzeIssue)\n[Open Saved Result](command:reposense.openResult)"
-      }
-    ],
     "menus": {
       "view/title": [
-        {
-          "command": "reposense.analyzeIssue",
-          "when": "view == reposense.plan",
-          "group": "navigation@1"
-        },
-        {
-          "command": "reposense.showPanel",
-          "when": "view == reposense.plan",
-          "group": "navigation@2"
-        },
-        {
-          "command": "reposense.clear",
-          "when": "view == reposense.plan",
-          "group": "navigation@3"
-        }
+        { "command": "reposense.openMap", "when": "view == reposense.file", "group": "navigation@1" },
+        { "command": "reposense.start", "when": "view == reposense.file", "group": "navigation@2" }
+      ],
+      "commandPalette": [
+        { "command": "reposense.showCommit", "when": "false" }
       ]
     },
     "configuration": {
@@ -98,25 +65,42 @@
         "reposense.language": {
           "type": "string",
           "default": "Chinese",
-          "description": "Language of the generated plan."
+          "description": "Language of generated explanations."
         },
-        "reposense.useHistory": {
-          "type": "boolean",
-          "default": true,
-          "description": "Let the agent read git history, related PRs and review comments."
+        "reposense.historyLimit": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "How many recent commits of a file to show and highlight."
+        },
+        "reposense.cloneDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Default parent folder for repositories cloned by RepoSense (empty: ~/RepoSense)."
         }
       }
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "package": "vsce package --allow-missing-repository"
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p ./",
+    "package": "npm run typecheck && npm run build && vsce package --allow-missing-repository --skip-license"
+  },
+  "dependencies": {
+    "d3-hierarchy": "^3.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
     "@types/node": "^20.11.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.23.1",
     "typescript": "^5.4.0"
   }
 }
