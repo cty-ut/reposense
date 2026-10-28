@@ -19,7 +19,7 @@ dependencies = [
     "tree-sitter-typescript",
     "chromadb",
     "rank-bm25",
-    "mcp",
+    "mcp<2",  # mcp 2.x removed Server.list_tools() used by mcp_server.py
     "rich",
     "click",
     "python-dotenv",

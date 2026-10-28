@@ -28,7 +28,7 @@ def main():
     if not settings.github_token:
         print("⚠️  GITHUB_TOKEN not set — skipping.")
         return
-    if not settings.google_api_key and not settings.poe_api_key:
+    if not settings.llm_keys:
         print("⚠️  No LLM API key set — skipping.")
         return
 

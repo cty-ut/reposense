@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Pricing per 1M tokens (USD) — approximate, as of 2025
 PRICING = {
+    "deepseek-chat": {"input": 0.28, "output": 0.42},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     "Claude-Sonnet-4": {"input": 3.00, "output": 15.00},
 }

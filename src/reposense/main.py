@@ -42,6 +42,10 @@ def check() -> None:
         raise SystemExit(1)
 
     lines = ["  [green]✓[/green] GITHUB_TOKEN"]
+    if settings.deepseek_api_key:
+        lines.append(f"  [green]✓[/green] DEEPSEEK_API_KEY (primary: {settings.deepseek_model})")
+    else:
+        lines.append("  [dim]○[/dim] DEEPSEEK_API_KEY (not set)")
     if settings.google_api_key:
         lines.append("  [green]✓[/green] GOOGLE_API_KEY")
     else:

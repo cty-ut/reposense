@@ -12,7 +12,7 @@ from langgraph.prebuilt import create_react_agent
 
 from reposense.config import settings
 from reposense.graph.state import RepoSenseState
-from reposense.llm import get_llm, force_provider
+from reposense.llm import mark_rate_limited, select_llm
 from reposense.metrics import get_collector
 from reposense.rag.hybrid import HybridRetriever
 from reposense.rag.indexer import CodeIndexer
@@ -185,7 +185,7 @@ class QAEngine:
         if self._agent is not None and not force_rebuild:
             return
 
-        llm = get_llm(temperature=0, max_output_tokens=4096)
+        self._current_provider, llm = select_llm(temperature=0, max_output_tokens=4096)
         if not llm.callbacks:
             llm.callbacks = []
         llm.callbacks.append(_MetricsCallbackHandler())
@@ -243,8 +243,8 @@ class QAEngine:
                 logger.error("ReAct agent failed: %s", exc)
                 is_rate_limit = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
                 if attempt == 0 and settings.has_fallback_llm and is_rate_limit:
-                    logger.info("Rate limited — switching to fallback LLM (Poe)...")
-                    force_provider("poe")
+                    logger.info("Rate limited — switching from %s to fallback LLM...", self._current_provider)
+                    mark_rate_limited(self._current_provider)
                     self._agent = None
                     self._memory = MemorySaver()
                     self._ensure_agent(force_rebuild=True)

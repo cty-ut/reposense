@@ -7,7 +7,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-purple.svg)](https://github.com/langchain-ai/langgraph)
-[![Gemini](https://img.shields.io/badge/LLM-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev/)
+[![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-blue.svg)](https://platform.deepseek.com/)
 
 给 RepoSense 一个 GitHub 仓库地址，它帮你在几分钟内搞懂项目架构、核心逻辑和贡献路径。
 
@@ -119,11 +119,12 @@ reposense analyze "https://github.com/pallets/click"
 
 ```env
 GITHUB_TOKEN=ghp_xxxx              # 必填
-GOOGLE_API_KEY=AIzaSy...           # 主力 LLM (Gemini 2.5 Flash)
-POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动降级)
+DEEPSEEK_API_KEY=sk-...            # 主力 LLM (deepseek-chat)
+GOOGLE_API_KEY=AIzaSy...           # 备用 LLM (可选，Gemini 2.5 Flash)
+POE_API_KEY=xxx                    # 备用 LLM (可选)
 ```
 
-至少需要 `GITHUB_TOKEN` + 一个 LLM API Key。
+至少需要 `GITHUB_TOKEN` + 一个 LLM API Key。多个 Key 同时配置时按 DeepSeek → Gemini → Poe 的顺序使用，前一个限流时自动降级。
 
 </details>
 
@@ -131,7 +132,7 @@ POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动
 
 ## 📊 评测数据
 
-基于 `tiangolo/sqlmodel` 的完整评测（[查看报告](eval/results/eval_20260407_030720.md)）：
+基于 `tiangolo/sqlmodel` 的完整评测（[查看报告](eval/results/eval_20260407_030720.md)，当时使用 Gemini 2.5 Flash，尚未用 DeepSeek 重新评测）：
 
 | 指标 | 结果 | 目标 |
 |------|------|------|
@@ -198,8 +199,8 @@ POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动
          │
 ┌────────▼────────┐    ┌─────────────────────────────────────┐
 │    LLM 层       │    │   可观测性                           │
-│  · Gemini (主)  │    │  · Token 计数 + 成本追踪             │
-│  · Poe (备)     │    │  · 速率限制冷却                      │
+│  · DeepSeek (主)│    │  · Token 计数 + 成本追踪             │
+│  · Gemini/Poe(备)│   │  · 速率限制冷却                      │
 │  · 自动降级     │    │  · Token 预算熔断                    │
 │  · 60s 冷却     │    │  · 幻觉校验 (否认检测)               │
 └─────────────────┘    └─────────────────────────────────────┘
@@ -214,7 +215,7 @@ POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动
 | **三级漏斗分析** | 目录级 → 文件级 → 函数级，逐层深入 | 大仓库不可能一次全读，先粗后细控制 Token |
 | **混合检索 + RRF** | 向量语义搜索 + BM25 关键词搜索 | 向量擅长理解意图，BM25 擅长精确匹配，互补 |
 | **Zipball 加速** | 一次性下载仓库压缩包，替代逐文件 API | 索引构建从 10 分钟缩短到 30 秒 |
-| **双 LLM 降级** | Gemini → Poe，60 秒冷却机制 | 免费额度用完自动切换，不中断分析 |
+| **多 LLM 降级** | DeepSeek → Gemini → Poe，60 秒冷却机制 | 限流或额度用完自动切换，不中断分析 |
 | **两层反幻觉** | Prompt 约束 + 后验路径校验 | LLM 会编造文件路径，必须双重保障 |
 | **索引持久化** | ChromaDB + BM25 pickle 缓存到磁盘 | 首次 30 秒，再次 0.1 秒 |
 
@@ -229,7 +230,7 @@ POE_API_KEY=xxx                    # 备用 LLM (可选，Gemini 限流时自动
 src/reposense/
 ├── main.py                 # CLI 入口
 ├── config.py               # 配置管理
-├── llm.py                  # LLM 双通道 + 自动降级 + Token 预算
+├── llm.py                  # 多 LLM 通道 + 自动降级 + Token 预算
 ├── metrics.py              # 可观测性
 ├── mcp_server.py           # MCP Server
 ├── graph/                  # LangGraph 工作流
