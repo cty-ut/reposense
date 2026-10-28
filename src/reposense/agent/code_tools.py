@@ -10,7 +10,8 @@ import fnmatch
 import shutil
 import subprocess
 
-from reposense.workspace import Workspace, git
+from reposense.core.git import run as git
+from reposense.core.workspace import Workspace
 
 MAX_RESULTS = 60
 READ_DEFAULT_LIMIT = 200

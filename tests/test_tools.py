@@ -1,6 +1,6 @@
 import pytest
 
-from reposense.tools import code_tools, history_tools
+from reposense.agent import code_tools, history_tools
 
 
 def test_glob_and_ls(ws):

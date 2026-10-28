@@ -2,7 +2,7 @@
 
 from conftest import FakeGitHub, ScriptedClient
 
-from reposense.agent import AgentConfig, ContributionAgent
+from reposense.agent.contribution import AgentConfig, ContributionAgent
 
 READ_CORE = ("read", {"path": "src/pkg/core.py", "start_line": 1, "end_line": 7, "reason": "look at metavar"})
 GOOD_CHANGE = {"file": "src/pkg/core.py", "start_line": 5, "end_line": 6, "anchor": "if self.nargs != 1:",

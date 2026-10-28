@@ -101,8 +101,8 @@ def _print_plan(result: dict) -> None:
 def plan(issue_url: str, repo_path: str | None, no_history: bool, max_steps: int, lang: str,
          out: str | None, jsonl: bool) -> None:
     """Explore the code and its history, then produce a verified contribution plan for ISSUE_URL."""
-    from reposense.agent import AgentConfig, ContributionAgent
-    from reposense.workspace import Workspace, parse_issue_url
+    from reposense.agent.contribution import AgentConfig, ContributionAgent
+    from reposense.core.workspace import Workspace, parse_issue_url
 
     def emit_json(e: dict) -> None:
         sys.stdout.write(json.dumps(e, ensure_ascii=False) + "\n")
@@ -130,6 +130,33 @@ def plan(issue_url: str, repo_path: str | None, no_history: bool, max_steps: int
         Path(out).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     if not jsonl:
         _print_plan(result)
+
+
+@cli.command()
+def serve() -> None:
+    """Run the JSON-RPC backend on stdio (started by the VS Code extension)."""
+    from reposense.server import main as serve_main
+
+    serve_main()
+
+
+@cli.command()
+@click.argument("method")
+@click.option("--repo-path", type=click.Path(exists=True, file_okay=False), default=".", show_default=True)
+@click.option("--params", default="{}", help='JSON object, e.g. \'{"path": "src/app.py"}\'.')
+@click.option("--lang", default="Chinese", show_default=True)
+def call(method: str, repo_path: str, params: str, lang: str) -> None:
+    """Call one backend method directly and print its JSON result (for debugging)."""
+    from reposense.server import METHODS, Session
+
+    err = Console(stderr=True)
+    session = Session(lambda m, p: err.print(f"[dim]{m}: {p}[/dim]", highlight=False))
+    if method not in ("repo.clone", "config.check"):
+        session.repo_open(repo_path, lang=lang)
+    if method not in METHODS:
+        raise click.BadParameter(f"Unknown method. Choose from: {', '.join(METHODS)}")
+    result = getattr(session, METHODS[method])(**json.loads(params))
+    sys.stdout.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
 
 
 if __name__ == "__main__":

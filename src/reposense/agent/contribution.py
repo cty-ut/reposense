@@ -14,10 +14,12 @@ from typing import Any, Callable
 
 from openai import OpenAI
 
+from reposense.agent import code_tools, history_tools
 from reposense.config import settings
-from reposense.tools import code_tools, history_tools
-from reposense.tools.history_tools import GitHubHistory
-from reposense.workspace import Workspace
+from reposense.core.cache import JsonCache
+from reposense.core.github import GitHubClient
+from reposense.core.llm import make_client
+from reposense.core.workspace import Workspace
 
 Emit = Callable[[dict], None]
 
@@ -149,9 +151,8 @@ class ContributionAgent:
         self.ws = ws
         self.cfg = config or AgentConfig()
         self.emit = emit or (lambda e: None)
-        self.gh = GitHubHistory(ws.repo, cutoff=self.cfg.cutoff)
-        self.client = client or OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url,
-                                       timeout=120, max_retries=2)
+        self.gh = GitHubClient(ws.repo, cutoff=self.cfg.cutoff, cache=JsonCache(ws.repo))
+        self.client = client or make_client()
         self.model = settings.deepseek_model
         self.ledger = Ledger()
 
@@ -188,10 +189,9 @@ class ContributionAgent:
                 return history_tools.git_log(ws, a["path"], a.get("max_count", 10))
             if name == "git_blame":
                 return history_tools.git_blame(ws, a["path"], a["start_line"], a["end_line"])
-            if name == "search_prs":
-                return self.gh.search(a["query"], "pr")
-            if name == "search_issues":
-                return self.gh.search(a["query"], "issue")
+            if name in ("search_prs", "search_issues"):
+                kind = "pr" if name == "search_prs" else "issue"
+                return {"query": a["query"], "results": self.gh.search(a["query"], kind)}
             if name == "get_pr":
                 res = self.gh.get_pr(int(a["number"]))
                 if "error" not in res:

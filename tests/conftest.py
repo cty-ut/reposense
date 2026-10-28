@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from reposense.workspace import Workspace
+from reposense.core.workspace import Workspace
 
 CORE = """\
 def make_metavar(self):
@@ -63,7 +63,7 @@ class FakeGitHub:
                 "review_comments": []}
 
     def search(self, query, kind="pr"):
-        return {"query": query, "kind": kind, "results": []}
+        return []
 
     def close(self):
         pass
