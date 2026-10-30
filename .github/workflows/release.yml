@@ -1,0 +1,54 @@
+# Builds one .vsix per platform, each with the backend bundled (no Python needed by users).
+# Runs on demand, for version tags, and on pull requests that touch the backend or the extension
+# (so every platform is checked before merging). The .vsix files are attached to the run as artifacts.
+name: Build extension
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths: ["src/**", "packaging/**", "vscode-extension/**", "pyproject.toml", ".github/workflows/release.yml"]
+
+jobs:
+  vsix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: win32-x64 }
+          - { os: ubuntu-latest, target: linux-x64 }
+          - { os: macos-latest, target: darwin-arm64 }
+          - { os: macos-13, target: darwin-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the smoke test reads git history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bundle the backend
+        run: |
+          python -m pip install . pyinstaller
+          python packaging/build_backend.py
+      - name: Smoke-test the bundled backend
+        shell: bash
+        run: python packaging/smoke_backend.py vscode-extension/bin/reposense-backend$([ "$RUNNER_OS" = Windows ] && echo .exe)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Package the extension
+        working-directory: vscode-extension
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+          npx vsce package --target ${{ matrix.target }} --allow-missing-repository --skip-license
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reposense-${{ matrix.target }}
+          path: vscode-extension/*.vsix

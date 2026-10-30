@@ -27,3 +27,7 @@ chroma_data/
 vscode-extension/node_modules/
 vscode-extension/out/
 vscode-extension/*.vsix
+vscode-extension/bin/
+
+# PyInstaller work files
+build/
