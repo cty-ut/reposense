@@ -15,7 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 from reposense.agent.contribution import AgentConfig, ContributionAgent
-from reposense.analysis import dependencies, file_history, file_insight, opportunities, structure
+from reposense.analysis import (dependencies, file_history, file_insight, file_summaries, opportunities,
+                                structure)
 from reposense.config import settings
 from reposense.core.cache import JsonCache
 from reposense.core.github import GitHubClient
@@ -84,6 +85,14 @@ class Session:
     def repo_dependencies(self, refresh: bool = False) -> dict:
         return dependencies.build_dependencies(self._require_repo(), self.cache, refresh=refresh)
 
+    def repo_summaries(self, refresh: bool = False) -> dict:
+        ws = self._require_repo()
+        self.notify("progress", {"task": "summaries", "message": "Describing files…", "percent": 0})
+        return file_summaries.build_summaries(
+            ws, self._llm_or_fail(), self.cache, lang=self.lang, refresh=refresh,
+            on_progress=lambda done, total: self.notify(
+                "progress", {"task": "summaries", "message": "Describing files…", "percent": round(100 * done / total)}))
+
     def file_history(self, path: str, limit: int = 10) -> dict:
         return file_history.file_history(self._require_repo(), path, self.gh, limit=limit)
 
@@ -112,6 +121,7 @@ class Session:
 METHODS = {
     "config.check": "config_check", "repo.clone": "repo_clone", "repo.open": "repo_open",
     "repo.structure": "repo_structure", "repo.dependencies": "repo_dependencies",
+    "repo.summaries": "repo_summaries",
     "file.history": "file_history", "commit.detail": "commit_detail",
     "file.insight": "file_insight", "file.opportunities": "file_opportunities", "issue.plan": "issue_plan",
 }

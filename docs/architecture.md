@@ -13,8 +13,8 @@ RepoSense 由两部分组成：一个 **VS Code 扩展**（TypeScript，负责�
 └─────────────────────────────────────────────────────┼──────────┘
 ┌──────────────────────── Python 后端 ─────────────────▼──────────┐
 │ server.py        方法分发：repo.* / file.* / commit.* / issue.*  │
-│ analysis/        structure · dependencies · file_history ·      │
-│                  file_insight · opportunities                   │
+│ analysis/        structure · dependencies · file_summaries ·    │
+│                  file_history · file_insight · opportunities    │
 │ agent/           贡献计划 Agent（探索代码 + 项目历史 + 引用校验）    │
 │ core/            git · github · llm · cache · workspace · files  │
 └─────────────────────────────────────────────────────────────────┘
@@ -40,6 +40,7 @@ RepoSense 由两部分组成：一个 **VS Code 扩展**（TypeScript，负责�
 | `core/files.py` | 哪些文件参与分析（跳过二进制和 vendored 代码），地图和依赖图共用 | 否 |
 | `analysis/structure.py` | 文件树统计（行数、语言、改动热度）+ 模型把目录归类到架构层，并写一句话说明 | 是，每个 commit 一次，有缓存 |
 | `analysis/dependencies.py` | 静态 import 图：Python 用 `ast`（含 `__init__` 再导出、`pkg.Name` 属性引用），JS/TS 解析相对路径 import | 否，按 commit 缓存 |
+| `analysis/file_summaries.py` | 每个文件一句话说明：只把大纲（docstring、类、函数）按目录分批给模型；路径必须是发出去的；Markdown 直接用标题 | 是，按文件内容缓存，只重算改过的文件 |
 | `analysis/file_history.py` | 文件最近 N 次提交；用 blame 把每行映射到提交；关联 PR；单个提交的 diff 和 review 详情 | 否 |
 | `analysis/file_insight.py` | 文件功能分析：职责、关键符号及其行号（行号会被校验） | 是，按文件内容缓存 |
 | `analysis/opportunities.py` | 贡献机会：GitHub 上相关的开放 Issue + 模型从代码里找的改进点（引用会被校验） | 是 |
@@ -55,6 +56,7 @@ RepoSense 由两部分组成：一个 **VS Code 扩展**（TypeScript，负责�
 | `repo.open` | `path` | `{repo, root, head}` |
 | `repo.structure` | `refresh?` | 地图树：`MapNode`，层级为 repo → layer → dir → file |
 | `repo.dependencies` | `refresh?` | `{edges: [{source, target, weight}]}`：文件级 import 关系，weight 为引用次数 |
+| `repo.summaries` | `refresh?` | `{summaries: {path: 一句话}}`，过程中推送 `progress` 通知 |
 | `file.history` | `path, limit` | 最近提交列表，每个提交带它在当前文件里"留下的"行范围 |
 | `commit.detail` | `sha, path` | 该文件在这次提交的 diff、PR 描述、review 意见 |
 | `file.insight` | `path` | 职责、关键符号（含行号） |
