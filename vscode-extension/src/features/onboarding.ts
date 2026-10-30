@@ -8,6 +8,12 @@ const WELCOMED = 'reposense.welcomed';
 const PENDING_MAP = 'reposense.pendingMap';
 const REPO_URL = /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+?(\.git)?\/?$/;
 
+/** VS Code reports `c:\…` while Python reports `C:\…`; Windows paths are case-insensitive anyway. */
+function samePath(a: string, b: string): boolean {
+  const norm = (p: string) => (process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p));
+  return norm(a) === norm(b);
+}
+
 export class Onboarding {
   constructor(private readonly context: vscode.ExtensionContext, private readonly backend: Backend) {}
 
@@ -15,7 +21,7 @@ export class Onboarding {
   async onActivate(openMap: () => void): Promise<void> {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const pending = this.context.globalState.get<string>(PENDING_MAP);
-    if (root && pending && path.resolve(pending) === path.resolve(root)) {
+    if (root && pending && samePath(pending, root)) {
       await this.context.globalState.update(PENDING_MAP, undefined);
       openMap();
       return;

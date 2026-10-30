@@ -43,9 +43,7 @@ export function MapApp() {
 
   const zoom = (node: MapNode) => {
     if (node.kind === 'file' || !node.children?.length) return;
-    // A layer with a single directory adds no information: zoom straight into the directory.
-    const target = node.children.length === 1 && node.children[0].kind === 'dir' ? node.children[0] : node;
-    setStack((s) => (target === node ? [...s, node] : [...s, node, target]));
+    setStack((s) => [...s, node]);  // single-directory chains are folded by the treemap itself
   };
   const openFile = (path: string) => send({ type: 'openFile', path });
 

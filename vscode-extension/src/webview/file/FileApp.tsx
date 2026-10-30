@@ -68,9 +68,9 @@ export function FileApp() {
         <div className="muted small mono ellipsis" title={path}>{path}</div>
       </div>
       <div className="tabs">
-        <button className={`tab${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>改动历史</button>
-        <button className={`tab${tab === 'insight' ? ' active' : ''}`} onClick={() => setTab('insight')}>功能分析</button>
-        <button className={`tab${tab === 'contribute' ? ' active' : ''}`} onClick={() => setTab('contribute')}>贡献机会</button>
+        <button className={`tab${tab === 'history' ? ' active' : ''}`} title="改动历史" onClick={() => setTab('history')}>历史</button>
+        <button className={`tab${tab === 'insight' ? ' active' : ''}`} title="功能分析" onClick={() => setTab('insight')}>分析</button>
+        <button className={`tab${tab === 'contribute' ? ' active' : ''}`} title="贡献机会" onClick={() => setTab('contribute')}>贡献</button>
       </div>
       {tab === 'history' && (
         <Loadable load={history} render={(h) => (
