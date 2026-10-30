@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from reposense.core.cache import JsonCache
+from reposense.core.files import tracked_files
 from reposense.core.git import Git
 from reposense.core.llm import LLM
 from reposense.core.workspace import Workspace
@@ -25,11 +26,8 @@ LANGUAGES = {
     ".scala": "Scala", ".sh": "Shell", ".html": "HTML", ".css": "CSS", ".scss": "CSS", ".md": "Markdown",
     ".rst": "reStructuredText", ".yml": "YAML", ".yaml": "YAML", ".toml": "TOML", ".json": "JSON", ".sql": "SQL",
 }
-SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".eot", ".pdf",
-                 ".zip", ".gz", ".lock", ".min.js", ".map", ".pyc", ".so", ".dll", ".exe", ".bin"}
 LAYER_KINDS = ["frontend", "backend", "core", "cli", "api", "data", "tests", "docs", "examples", "infra",
                "tooling", "other"]
-MAX_FILES = 20_000
 
 SYSTEM = """You are mapping the architecture of a code repository for a newcomer.
 Group the given paths into 3-8 architecture layers, and describe the important modules.
@@ -60,11 +58,6 @@ def _language(path: str) -> str | None:
     return LANGUAGES.get(PurePosixPath(path).suffix.lower())
 
 
-def _skip(path: str) -> bool:
-    low = path.lower()
-    return any(low.endswith(s) for s in SKIP_SUFFIXES) or "/node_modules/" in f"/{low}" or "/vendor/" in f"/{low}"
-
-
 def _count_lines(ws: Workspace, path: str) -> int:
     try:
         data = (ws.root / path).read_bytes()
@@ -79,7 +72,7 @@ def collect_files(ws: Workspace) -> list[dict]:
     """Tracked text files with line count, language and 12-month change count."""
     git = Git(ws.root)
     churn = git.churn("12 months ago")
-    files = [f for f in git.ls_files() if not _skip(f)][:MAX_FILES]
+    files = tracked_files(ws)
     return [{"path": f, "lines": _count_lines(ws, f), "churn": churn.get(f, 0), "language": _language(f)}
             for f in files]
 

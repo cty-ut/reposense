@@ -33,6 +33,10 @@ export function layerColor(kind: string | undefined | null): string {
   return LAYER_COLORS[kind ?? 'other'] ?? LAYER_COLORS.other;
 }
 
+/** Import relations: what the selected file uses, and what uses it. */
+export const USES_COLOR = '#2f6fdf';
+export const USED_BY_COLOR = '#1f9d55';
+
 /** `#rrggbb` + alpha (0..1) → `rgba(...)`. */
 export function withAlpha(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);

@@ -26,6 +26,19 @@ export interface RepoStructure {
   root: MapNode;
 }
 
+/** `source` imports `target`; `weight` counts the import statements and references. */
+export interface DependencyEdge {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface Dependencies {
+  head: string;
+  parsed: number;
+  edges: DependencyEdge[];
+}
+
 export interface FileCommit {
   sha: string;
   short: string;
@@ -160,6 +173,7 @@ export type Load<T> = { state: 'idle' } | { state: 'loading'; message?: string }
 /** Map panel: host → webview */
 export type ToMapView =
   | { type: 'structure'; value: Load<RepoStructure> }
+  | { type: 'dependencies'; value: Load<Dependencies> }
   | { type: 'activeFile'; path: string | null };
 
 /** Map panel: webview → host */

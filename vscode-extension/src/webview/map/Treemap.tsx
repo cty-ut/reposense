@@ -1,9 +1,10 @@
 // Zoomable nested treemap: draws up to three levels below the focused node, all the way down to files.
 import { hierarchy, HierarchyRectangularNode, treemap, treemapSquarify } from 'd3-hierarchy';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { layerColor, withAlpha } from '../../shared/palette';
 import { MapNode } from '../../shared/protocol';
 import { compact } from '../format';
+import { useSize } from './useSize';
 
 export type ColorMode = 'size' | 'churn';
 
@@ -11,29 +12,25 @@ const MAX_DEPTH = 3;
 const HEAD = 22;
 const HEAT = '#e8590c';
 
+/** The file whose imports are highlighted, and the files on either side of it. */
+export interface Relations {
+  path: string;
+  uses: Set<string>;
+  usedBy: Set<string>;
+}
+
 interface Props {
   focus: MapNode;
   layerKinds: Record<string, string>;
   mode: ColorMode;
   activePath: string | null;
+  relations: Relations | null;
   onZoom: (node: MapNode) => void;
   onOpenFile: (path: string) => void;
   onHover: (node: MapNode | null, x?: number, y?: number) => void;
 }
 
 type Rect = HierarchyRectangularNode<MapNode>;
-
-function useSize() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    if (!ref.current) return;
-    const ro = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width, h: entry.contentRect.height }));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  return { ref, ...size };
-}
 
 /** A node whose only child is a directory (layer "测试" → tests/) shows that directory's contents directly. */
 export function collapse(n: MapNode): MapNode {
@@ -53,7 +50,15 @@ const width = (d: Rect) => d.x1 - d.x0;
 const height = (d: Rect) => d.y1 - d.y0;
 const hasHeader = (d: Rect) => width(d) > 70 && height(d) > 48;
 
-export function Treemap({ focus, layerKinds, mode, activePath, onZoom, onOpenFile, onHover }: Props) {
+function relationClass(n: MapNode, r: Relations | null): string {
+  if (!r) return '';
+  if (n.path === r.path) return ' rel-self';
+  if (r.uses.has(n.path)) return ' rel-uses';
+  if (r.usedBy.has(n.path)) return ' rel-used-by';
+  return ' dim';
+}
+
+export function Treemap({ focus, layerKinds, mode, activePath, relations, onZoom, onOpenFile, onHover }: Props) {
   const { ref, w, h } = useSize();
 
   const layout = useMemo(() => {
@@ -121,7 +126,7 @@ export function Treemap({ focus, layerKinds, mode, activePath, onZoom, onOpenFil
         const big = box.width > 110 && box.height > 60;
         const border = mode === 'size' ? withAlpha(colorOf(n), 0.35) : 'transparent';
         return (
-          <div key={n.id} className={`leaf${folded ? ' folded' : ''}${cls}`}
+          <div key={n.id} className={`leaf${folded ? ' folded' : ''}${cls}${relationClass(n, relations)}`}
                style={{ ...box, background: tileFill(n), borderColor: border }} {...events}>
             {box.width > 44 && box.height > 18 && (
               <div className={`leaf-label${big ? ' big' : ''}`}>
