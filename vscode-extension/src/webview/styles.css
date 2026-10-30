@@ -138,6 +138,23 @@ code, .mono { font-family: var(--mono); font-size: 12px; }
 .chip:hover { background: var(--hover); }
 .rel-list .hotfile .dot { flex: none; }
 
+/* reading order */
+.step-badge {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  font-size: 11px; font-weight: 700; line-height: 1;
+}
+.leaf > .step-badge, .gnode > .step-badge { position: absolute; top: 4px; right: 4px; z-index: 3; box-shadow: 0 0 0 2px var(--bg); }
+.leaf.on-route, .gnode.on-route { outline: 2px solid var(--vscode-button-background); outline-offset: -2px; z-index: 2; }
+.route { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.route-step { display: flex; gap: 10px; padding: 8px 6px; border-radius: 8px; position: relative; }
+.route-step:hover { background: var(--hover); }
+.route-step:not(:last-child)::after {
+  content: ''; position: absolute; left: 15px; top: 30px; bottom: -6px; width: 2px; background: var(--border);
+}
+.route-file { font-weight: 600; }
+.route-why { margin-top: 3px; line-height: 1.45; }
+
 .map-side { border-left: 1px solid var(--border); padding: 14px; overflow: auto; background: var(--panel); }
 .map-side h3 { margin: 0 0 2px; font-size: 15px; word-break: break-all; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }

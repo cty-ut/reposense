@@ -1,7 +1,7 @@
 // Repository map panel: loads the structure from the backend and opens files the user clicks.
 import * as vscode from 'vscode';
 import { Backend } from '../backend/api';
-import { Dependencies, FileSummaries, FromMapView, RepoStructure, ToMapView } from '../shared/protocol';
+import { Dependencies, FileSummaries, FromMapView, ReadingPath, RepoStructure, ToMapView } from '../shared/protocol';
 import { webviewHtml, webviewOptions } from './webviewHtml';
 
 export class RepoMapPanel implements vscode.Disposable {
@@ -9,6 +9,7 @@ export class RepoMapPanel implements vscode.Disposable {
   private structure?: RepoStructure;
   private dependencies?: Dependencies;
   private summaries?: FileSummaries;
+  private readingPath?: ReadingPath;
   private readonly subs: vscode.Disposable[] = [];
 
   constructor(
@@ -86,18 +87,35 @@ export class RepoMapPanel implements vscode.Disposable {
     }
   }
 
+  /** On demand (one model call): the newcomer reading order. */
+  private async loadReadingPath(refresh: boolean): Promise<void> {
+    this.post({ type: 'readingPath', value: { state: 'loading', message: '正在规划阅读路线…' } });
+    try {
+      this.readingPath = await this.backend.readingPath(refresh);
+      this.post({ type: 'readingPath', value: { state: 'ready', data: this.readingPath } });
+    } catch (err) {
+      this.post({ type: 'readingPath', value: { state: 'error', message: (err as Error).message } });
+    }
+  }
+
   private async onMessage(m: FromMapView): Promise<void> {
     if (m.type === 'ready') {
       if (this.structure) this.post({ type: 'structure', value: { state: 'ready', data: this.structure } });
       if (this.dependencies) this.post({ type: 'dependencies', value: { state: 'ready', data: this.dependencies } });
       if (this.summaries) this.post({ type: 'summaries', value: { state: 'ready', data: this.summaries } });
+      if (this.readingPath) this.post({ type: 'readingPath', value: { state: 'ready', data: this.readingPath } });
       this.post({ type: 'activeFile', path: this.rel(vscode.window.activeTextEditor) });
     } else if (m.type === 'refresh') {
       await this.load(true);
     } else if (m.type === 'openFile') {
       const uri = vscode.Uri.joinPath(vscode.Uri.file(this.root()!), m.path);
-      await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: false });
+      const at = m.line ? new vscode.Position(m.line - 1, 0) : undefined;
+      await vscode.window.showTextDocument(uri, {
+        viewColumn: vscode.ViewColumn.Beside, preview: false, selection: at && new vscode.Range(at, at),
+      });
       this.onFileOpened();
+    } else if (m.type === 'loadReadingPath') {
+      await this.loadReadingPath(!!m.refresh);
     }
   }
 

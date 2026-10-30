@@ -1,12 +1,15 @@
 // Repository map page: breadcrumb navigation, map/graph switch, the active view and the details sidebar.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Dependencies, FileSummaries, FromMapView, Load, MapNode, RepoStructure, ToMapView } from '../../shared/protocol';
+import {
+  Dependencies, FileSummaries, FromMapView, Load, MapNode, ReadingPath, RepoStructure, ToMapView,
+} from '../../shared/protocol';
 import { Loadable } from '../components/ui';
 import { compact } from '../format';
 import { post, useHostMessages } from '../vscodeApi';
 import { DependencyGraph } from './DependencyGraph';
 import { DependencyIndex } from './graphLayout';
 import { MapSidebar } from './MapSidebar';
+import { RoutePanel } from './RoutePanel';
 import { indexById, withSummaries } from './tree';
 import { ColorMode, Relations, Treemap } from './Treemap';
 
@@ -17,6 +20,8 @@ export function MapApp() {
   const [load, setLoad] = useState<Load<RepoStructure>>({ state: 'loading', message: '正在准备…' });
   const [deps, setDeps] = useState<Load<Dependencies>>({ state: 'idle' });
   const [summaries, setSummaries] = useState<Load<FileSummaries>>({ state: 'idle' });
+  const [route, setRoute] = useState<Load<ReadingPath>>({ state: 'idle' });
+  const [showRoute, setShowRoute] = useState(false);
   // Node ids, not nodes: the tree is rebuilt when the file descriptions arrive.
   const [stack, setStack] = useState<string[]>([]);
   const [view, setView] = useState<View>('map');
@@ -35,6 +40,8 @@ export function MapApp() {
       setDeps(m.value);
     } else if (m.type === 'summaries') {
       setSummaries(m.value);
+    } else if (m.type === 'readingPath') {
+      setRoute(m.value);
     } else if (m.type === 'activeFile') {
       setActivePath(m.path);
     }
@@ -80,7 +87,17 @@ export function MapApp() {
     if (node.kind === 'file' || !node.children?.length) return;
     setStack((s) => [...s, node.id]);  // single-directory chains are folded by the views themselves
   };
-  const openFile = (path: string) => send({ type: 'openFile', path });
+  const openFile = (path: string, line?: number) => send({ type: 'openFile', path, line });
+  const steps = useMemo(() => (showRoute && route.state === 'ready'
+    ? new Map(route.data.steps.map((s, i) => [s.path, i + 1])) : null), [showRoute, route]);
+  const describeFile = useMemo(() => {
+    const byPath = new Map([...byId.values()].map((n) => [n.path, n.description]));
+    return (path: string) => byPath.get(path);
+  }, [byId]);
+  const openRoute = () => {
+    setShowRoute(true);
+    if (route.state === 'idle' || route.state === 'error') send({ type: 'loadReadingPath' });
+  };
   const onHover = (node: MapNode | null, x?: number, y?: number) => {
     setHover(node ? { node, x: x!, y: y! } : null);
     if (node) setInspected(node);
@@ -117,18 +134,23 @@ export function MapApp() {
             </div>
             {summaries.state === 'loading' && <span className="muted small">{summaries.message}</span>}
             {summaries.state === 'error' && <span className="muted small" title={summaries.message}>文件说明生成失败</span>}
+            <button className={`btn${showRoute ? ' primary' : ''}`} title="按什么顺序读这个仓库"
+                    onClick={() => (showRoute ? setShowRoute(false) : openRoute())}>阅读路线</button>
             <button className="btn icon" title="重新分析" onClick={() => send({ type: 'refresh' })}>⟳</button>
           </header>
           <div className="map-body">
             {view === 'map' ? (
-              <Treemap focus={focus} layerKinds={layerKinds} mode={mode} activePath={activePath} relations={relations}
+              <Treemap focus={focus} layerKinds={layerKinds} mode={mode} activePath={activePath} relations={relations} steps={steps}
                        onZoom={zoom} onOpenFile={openFile} onHover={onHover} />
             ) : (
-              <DependencyGraph focus={focus} layerKinds={layerKinds} index={index}
+              <DependencyGraph focus={focus} layerKinds={layerKinds} index={index} steps={steps}
                                onZoom={zoom} onOpenFile={openFile} onHover={onHover} />
             )}
-            <MapSidebar structure={structure} node={shown} layerKinds={layerKinds} deps={deps} index={index}
-                        onZoom={zoom} onOpenFile={openFile} />
+            {showRoute ? (
+              <RoutePanel route={route} describe={describeFile} onOpen={openFile} onClose={() => setShowRoute(false)}
+                          onRegenerate={() => send({ type: 'loadReadingPath', refresh: true })} />
+            ) : <MapSidebar structure={structure} node={shown} layerKinds={layerKinds} deps={deps} index={index}
+                        onZoom={zoom} onOpenFile={openFile} />}
           </div>
           {hover && (
             <div className="tooltip" style={{ left: Math.min(hover.x + 14, window.innerWidth - 330), top: hover.y + 14 }}>

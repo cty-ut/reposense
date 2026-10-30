@@ -39,6 +39,19 @@ export interface Dependencies {
   edges: DependencyEdge[];
 }
 
+/** One step of the newcomer reading order; `via` is the earlier step it is connected to by an import. */
+export interface ReadingStep {
+  path: string;
+  why: string;
+  look_for: { name: string; line: number }[];
+  via: string | null;
+}
+
+export interface ReadingPath {
+  steps: ReadingStep[];
+  dropped: string[];
+}
+
 /** One-line description per file path. */
 export interface FileSummaries {
   summaries: Record<string, string>;
@@ -183,12 +196,14 @@ export type ToMapView =
   | { type: 'structure'; value: Load<RepoStructure> }
   | { type: 'dependencies'; value: Load<Dependencies> }
   | { type: 'summaries'; value: Load<FileSummaries> }
+  | { type: 'readingPath'; value: Load<ReadingPath> }
   | { type: 'activeFile'; path: string | null };
 
 /** Map panel: webview → host */
 export type FromMapView =
   | { type: 'ready' }
-  | { type: 'openFile'; path: string }
+  | { type: 'openFile'; path: string; line?: number }
+  | { type: 'loadReadingPath'; refresh?: boolean }
   | { type: 'refresh' };
 
 /** File Insights view: host → webview */
