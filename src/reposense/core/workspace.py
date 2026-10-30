@@ -62,7 +62,8 @@ class Workspace:
         root.parent.mkdir(parents=True, exist_ok=True)
         proc = subprocess.Popen(
             ["git", "clone", "--progress", f"https://github.com/{repo}.git", str(root)],
-            stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
+            stdin=subprocess.DEVNULL, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            text=True, encoding="utf-8", errors="replace",
         )
         tail = ""
         assert proc.stderr is not None
@@ -83,7 +84,7 @@ class Workspace:
             root.parent.mkdir(parents=True, exist_ok=True)
             proc = subprocess.run(
                 ["git", "clone", "--filter=blob:none", "--quiet", f"https://github.com/{repo}.git", str(root)],
-                capture_output=True, text=True,
+                stdin=subprocess.DEVNULL, capture_output=True, text=True,
             )
             if proc.returncode != 0:
                 raise RuntimeError(f"git clone failed: {proc.stderr.strip()[:300]}")

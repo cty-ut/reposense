@@ -41,7 +41,8 @@ def grep(ws: Workspace, pattern: str, path: str = "", file_glob: str = "", ignor
         if file_glob:
             cmd += ["--glob", file_glob]
         cmd += ["--", pattern, target]
-        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
         prefix = str(ws.root) + "\\" if "\\" in target else str(ws.root) + "/"
         raw = [ln.replace(prefix, "", 1).replace("\\", "/") for ln in proc.stdout.splitlines()]
     else:

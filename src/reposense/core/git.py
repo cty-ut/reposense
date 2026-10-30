@@ -20,9 +20,11 @@ def pr_from_subject(subject: str) -> int | None:
 
 
 def run(root: Path, *args: str, check: bool = True) -> str:
+    # stdin=DEVNULL everywhere we spawn: under `reposense serve` stdin is the JSON-RPC pipe, and on
+    # Windows a child that inherits a pipe with a pending read blocks at startup until the next request.
     proc = subprocess.run(
         ["git", "-C", str(root), *args],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if check and proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(args[:3])} failed: {proc.stderr.strip()[:300]}")
