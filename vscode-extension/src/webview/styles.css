@@ -1,0 +1,164 @@
+/* Design tokens come from the VS Code theme so the UI fits light and dark themes. */
+:root {
+  --fg: var(--vscode-foreground);
+  --muted: var(--vscode-descriptionForeground);
+  --bg: var(--vscode-editor-background);
+  --panel: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --card: var(--vscode-editorWidget-background);
+  --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.25)));
+  --accent: var(--vscode-focusBorder);
+  --link: var(--vscode-textLink-foreground);
+  --hover: var(--vscode-list-hoverBackground);
+  --selected: var(--vscode-list-activeSelectionBackground);
+  --mono: var(--vscode-editor-font-family);
+  --radius: 8px;
+  --add: #3fb950;
+  --del: #f85149;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; padding: 0; }
+body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--fg); line-height: 1.5; }
+button { font: inherit; color: inherit; }
+a { color: var(--link); text-decoration: none; cursor: pointer; }
+a:hover { text-decoration: underline; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+
+/* ---------------------------------------------------------------- shared */
+.muted { color: var(--muted); }
+.small { font-size: 11.5px; }
+.row { display: flex; align-items: center; gap: 6px; }
+.grow { flex: 1; min-width: 0; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.btn {
+  border: 1px solid var(--border); background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.btn.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+.btn.primary:hover { background: var(--vscode-button-hoverBackground); }
+.btn.icon { padding: 2px 7px; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 16px; padding: 0 7px;
+  border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap;
+}
+.badge.solid { border: none; color: #fff; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 16px 0 8px; }
+
+.state { padding: 24px 12px; text-align: center; color: var(--muted); }
+.state.error { color: var(--vscode-errorForeground); text-align: left; white-space: pre-wrap; }
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadein { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+
+.tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 8px; position: sticky; top: 0; background: var(--panel); z-index: 2; }
+.tab {
+  flex: 1; border: none; background: none; padding: 7px 4px; cursor: pointer; color: var(--muted); white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+
+/* ---------------------------------------------------------------- repository map */
+.map-app { display: grid; grid-template-rows: auto 1fr; height: 100%; background: var(--bg); }
+.map-top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.map-title { font-size: 15px; font-weight: 600; }
+.crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.crumb { border: none; background: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; color: var(--muted); }
+.crumb:hover { background: var(--hover); color: var(--fg); }
+.crumb.current { color: var(--fg); font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { border: none; background: none; padding: 3px 10px; cursor: pointer; color: var(--muted); }
+.seg button.on { background: var(--selected); color: var(--fg); }
+
+.map-body { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+.map-canvas { position: relative; overflow: hidden; margin: 12px; animation: fadein 0.25s ease; }
+.frame, .leaf { position: absolute; overflow: hidden; cursor: pointer; }
+.frame { border: 1px solid var(--border); border-radius: 5px; }
+.frame.top { border-radius: 8px; }
+.frame:hover { border-color: var(--accent) !important; }
+.frame-head {
+  height: 22px; padding: 0 7px; display: flex; gap: 6px; align-items: center;
+  font-size: 11.5px; white-space: nowrap; overflow: hidden;
+}
+.frame.top > .frame-head { font-size: 12.5px; font-weight: 600; }
+.frame-head .mono { font-size: 11px; font-weight: 400; }
+.leaf { border-radius: 4px; border: 1px solid transparent; transition: filter 0.12s; }
+.leaf:hover { filter: brightness(0.92) saturate(1.3); }
+.leaf.folded { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(128, 128, 128, 0.08) 6px 12px); }
+.leaf-label { position: absolute; inset: 3px 6px; font-size: 11px; line-height: 1.35; color: var(--fg); pointer-events: none; }
+.leaf-label.big { inset: 7px 9px; font-size: 12px; }
+.leaf-label.big .name { font-weight: 600; font-size: 12.5px; }
+.heatbar { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 0 2px 0 3px; }
+.frame.active, .leaf.active { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+
+.map-side { border-left: 1px solid var(--border); padding: 14px; overflow: auto; background: var(--panel); }
+.map-side h3 { margin: 0 0 2px; font-size: 15px; word-break: break-all; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.stat b { display: block; font-size: 15px; }
+.langbar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 6px 0; }
+.legend { display: flex; flex-direction: column; gap: 4px; }
+.legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.legend-item:hover { background: var(--hover); }
+.hotfile { display: flex; gap: 6px; align-items: center; padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+.hotfile:hover { background: var(--hover); }
+.tooltip {
+  position: fixed; pointer-events: none; z-index: 10; max-width: 320px; padding: 8px 10px; border-radius: 6px;
+  background: var(--vscode-editorHoverWidget-background); border: 1px solid var(--vscode-editorHoverWidget-border); font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- file insights */
+.file-app { height: 100%; overflow: auto; background: var(--panel); }
+.file-head { padding: 10px 12px 6px; }
+.file-head .name { font-size: 14px; font-weight: 600; word-break: break-all; }
+.pane { padding: 4px 12px 24px; }
+
+.ownbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border); margin: 6px 0 2px; }
+
+.graph { position: relative; }
+.commit { display: grid; grid-template-columns: 26px 1fr; cursor: pointer; border-radius: 6px; }
+.commit:hover { background: var(--hover); }
+.commit.selected { background: var(--selected); }
+.lane { position: relative; }
+.lane::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.commit:first-child .lane::before { top: 14px; }
+.commit:last-child .lane::before { bottom: calc(100% - 14px); }
+.node { position: absolute; left: 6px; top: 8px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--panel); box-shadow: 0 0 0 1px var(--border); }
+.commit-body { padding: 5px 8px 7px 2px; min-width: 0; }
+.commit-subject { font-weight: 500; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.add { color: var(--add); }
+.del { color: var(--del); }
+
+.detail { margin: 2px 0 10px 26px; display: flex; flex-direction: column; gap: 8px; animation: fadein 0.2s ease; }
+.diff { max-height: 280px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 11.5px; line-height: 1.45; }
+.diff div { padding: 0 8px; white-space: pre; }
+.diff .d-add { background: rgba(63, 185, 80, 0.15); }
+.diff .d-del { background: rgba(248, 81, 73, 0.15); }
+.diff .d-hunk { color: var(--muted); background: var(--card); }
+.review { border-left: 3px solid var(--border); padding: 2px 0 2px 8px; }
+.review .who { font-weight: 600; font-size: 12px; }
+.prebody { white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto; }
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+.symbol { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; }
+.symbol:hover { background: var(--hover); }
+.kind-chip { font-family: var(--mono); font-size: 10.5px; padding: 0 5px; border-radius: 4px; background: var(--card); border: 1px solid var(--border); height: 17px; align-self: center; }
+.diff-easy { background: #17c964; }
+.diff-medium { background: #f5a524; }
+.diff-hard { background: #f31260; }
+.events { font-family: var(--mono); font-size: 11px; max-height: 180px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.events .ok { color: var(--add); }
+.events .bad { color: var(--del); }
+ul.tight { margin: 4px 0; padding-left: 18px; }

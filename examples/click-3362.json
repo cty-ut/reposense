@@ -1,0 +1,841 @@
+{
+  "repo": "pallets/click",
+  "commit": "2247b35ea1c47c727d7a06e51fa280e12a863ff6",
+  "issue": {
+    "number": 3362,
+    "title": "`HelpFormatter.write_usage` breaks options at a hyphen",
+    "url": "https://github.com/pallets/click/issues/3362",
+    "labels": [
+      "help output"
+    ]
+  },
+  "status": "ok",
+  "plan": {
+    "summary": "Issue #3362：`HelpFormatter.write_usage` 通过 `wrap_text` 调用 `textwrap.TextWrapper`，默认 `break_on_hyphens=True`，导致 `--max-retry-count` 这类选项在行宽处被从连字符处拆成 `--max-` / `retry-count`。修复思路：给 `click.formatting.wrap_text` 增加一个 `break_on_hyphens` 参数（默认 `True`，保持帮助文本换行行为不变），并在 `write_usage` 的两个换行分支中传 `break_on_hyphens=False`，让带连字符的选项/`metavar` 整体移到下一行。同时补测试与 CHANGES.md 条目。",
+    "changes": [
+      {
+        "file": "src/click/formatting.py",
+        "start_line": 31,
+        "end_line": 37,
+        "anchor": "    preserve_paragraphs: bool = False,",
+        "what": "在 `wrap_text` 签名末尾新增关键字参数 `break_on_hyphens: bool = True`（建议用 `*,` 使其仅限关键字），并在 docstring 的 `:param` 列表（第 47-54 行）中补充说明，再加一条 `.. versionchanged:: 8.6.0` 说明新增该参数。",
+        "why": "第 62-70 行显示 `wrap_text` 直接构造 `TextWrapper(width, initial_indent=..., subsequent_indent=..., replace_whitespace=False)`，没有暴露 `break_on_hyphens`；issue 的 Cause 一节明确指出用户无法影响该行为，只能重写 `write_usage` 和 `wrap_text`。",
+        "confidence": "high"
+      },
+      {
+        "file": "src/click/formatting.py",
+        "start_line": 65,
+        "end_line": 70,
+        "anchor": "        replace_whitespace=False,",
+        "what": "在 `TextWrapper(...)` 构造调用中加上 `break_on_hyphens=break_on_hyphens,`。",
+        "why": "这是 `wrap_text` 唯一构造 wrapper 的位置（第 65-70 行），参数必须在这里转发给 `textwrap.TextWrapper` 才会生效。",
+        "confidence": "high"
+      },
+      {
+        "file": "src/click/formatting.py",
+        "start_line": 183,
+        "end_line": 190,
+        "anchor": "                wrap_text(",
+        "what": "在 `write_usage` 第一个分支（args 与 prefix 同行）的 `wrap_text(args, text_width, initial_indent=usage_prefix, subsequent_indent=indent)` 调用中加 `break_on_hyphens=False`。",
+        "why": "第 180-190 行是 issue 复现输出中发生 `--max-` / `retry-count` 拆分的分支；issue 的 Expected output 要求选项整体换行。",
+        "confidence": "high"
+      },
+      {
+        "file": "src/click/formatting.py",
+        "start_line": 196,
+        "end_line": 200,
+        "anchor": "                wrap_text(",
+        "what": "在 `write_usage` 第二个分支（prefix 过长、args 另起一行）的 `wrap_text(args, text_width, initial_indent=indent, subsequent_indent=indent)` 调用中同样加 `break_on_hyphens=False`。",
+        "why": "第 191-200 行是另一个换行分支，同样会把带连字符的选项拆开；两个分支需保持一致，否则长 prog 名场景仍会复现。",
+        "confidence": "high"
+      },
+      {
+        "file": "tests/test_formatting.py",
+        "start_line": 625,
+        "end_line": 632,
+        "anchor": "def test_command_write_usage_no_args(runner, command_kwargs, expected_usage_line):",
+        "what": "在文件末尾新增测试：(1) `test_wrap_text_break_on_hyphens`，断言 `wrap_text(\"alpha --max-retry-count\", width=20)` 默认仍按连字符断开，而 `break_on_hyphens=False` 时整体换行；(2) `test_write_usage_does_not_break_options_at_hyphen`，用 issue 中的 10 个选项和 `click.HelpFormatter(width=65)` 断言输出等于 issue 的 Expected output。",
+        "why": "现有 `tests/test_formatting.py` 第 578-590 行的 `test_help_formatter_write_usage` 与第 625-632 行的 `test_command_write_usage_no_args` 是 `write_usage` 的既有测试位置，新测试放在同一文件末尾符合现有组织方式。",
+        "confidence": "high"
+      },
+      {
+        "file": "CHANGES.md",
+        "start_line": 1,
+        "end_line": 21,
+        "anchor": "## Version 8.6.0",
+        "what": "在 `## Version 8.6.0` 的 Unreleased 列表末尾追加一条：`{meth}`HelpFormatter.write_usage` 不再在连字符处拆分参数，`{func}`wrap_text` 新增 `break_on_hyphens` 参数。{issue}`3362`",
+        "why": "第 1-21 行是当前 Unreleased 的 8.6.0 变更列表，条目格式为 `- ... {pr}`NNNN`` / `{issue}`NNNN``。",
+        "confidence": "medium"
+      }
+    ],
+    "tests": [
+      {
+        "file": "tests/test_formatting.py",
+        "command": "pytest tests/test_formatting.py -q",
+        "why": "覆盖 `wrap_text` 与 `HelpFormatter.write_usage` 的既有及新增测试；pyproject.toml 第 83-84 行配置 `testpaths = [\"tests\"]`，依赖组 `tests` 含 pytest。"
+      },
+      {
+        "file": "tests/test_formatting.py",
+        "command": "pytest tests/test_formatting.py -q -k \"write_usage or wrap_text\"",
+        "why": "只跑与本次改动相关的用例，快速验证两个换行分支和 `break_on_hyphens` 转发。"
+      }
+    ],
+    "related_prs": [
+      {
+        "number": 3837,
+        "relevance": "同一 issue 的修复尝试（已关闭未合并），方案与本次一致：给 `wrap_text` 加 `break_on_hyphens` 并在 `write_usage` 传 `False`，测试用 issue 中的 10 个选项与 width=65。",
+        "review_notes": [
+          "该 PR 已关闭未合并，说明方案本身未被接受，提交前需与维护者确认是否走这条路",
+          "PR 中把参数放在 `*` 之后作为仅关键字参数，并同步更新 docstring 与 CHANGES.md"
+        ],
+        "title": "prevent HelpFormatter.write_usage from breaking options at hyphens (fixes #3362)",
+        "url": "https://github.com/pallets/click/pull/3837",
+        "author": "eminsk",
+        "merged_at": ""
+      },
+      {
+        "number": 3782,
+        "relevance": "更早的同类尝试，同样新增 `break_on_hyphens` 参数并覆盖 `write_usage` 两个分支，附带 `wrap_text` 默认行为不变的测试。",
+        "review_notes": [
+          "标题带 `[rejected AI]` 前缀，说明由 AI 自主提交的 PR 会被拒绝；请人工撰写并确认后再提交",
+          "其测试同时断言默认 `break_on_hyphens=True` 行为不变，可作为回归保护"
+        ],
+        "title": "[rejected AI] Do not break usage line arguments at a hyphen",
+        "url": "https://github.com/pallets/click/pull/3782",
+        "author": "fahadhewad",
+        "merged_at": ""
+      }
+    ],
+    "conventions": [
+      "CHANGES.md 在对应版本的 Unreleased 列表下用 `- 描述 {issue}`NNNN`` / `{pr}`NNNN`` 格式追加条目（见 CHANGES.md 第 5-21 行）。",
+      "公共 API 变更需在 docstring 中加 `.. versionchanged::` 说明（formatting.py 第 56-60 行已有先例）。",
+      "测试放在 tests/test_formatting.py，使用 pytest 参数化与 `pytest.param(..., id=...)` 风格（第 439-486、520-577 行）。",
+      "维护者明确不接受由 LLM agent 自主提交的 issue/PR（issue 评论引用 palletsprojects.com/contributing/llm-ai），提交前需人工确认。"
+    ],
+    "open_questions": [
+      "是否接受新增公共参数 `break_on_hyphens`，还是仅在 `write_usage` 内部硬编码 `break_on_hyphens=False`（不改变 `wrap_text` 签名）？此前 #3782、#3837 两个采用新增参数的 PR 均被关闭未合并，需维护者确认方向。",
+      "`write_usage` 关闭连字符断行后，超长单个选项（本身超过行宽）仍会由 `_handle_long_word` 硬切，这是否可接受？",
+      "CHANGES.md 应记入 8.6.0 还是 8.5.1 的 Unreleased 段（当前两段都存在，见第 1-25 行）？"
+    ],
+    "reviewers": [],
+    "dropped": []
+  },
+  "history": {
+    "src/click/formatting.py": [
+      {
+        "start": 28,
+        "end": 28,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 29,
+        "end": 30,
+        "sha": "0ed40c880c",
+        "author": "Armin Ronacher",
+        "date": "2014-04-27",
+        "summary": "Split up click into a package",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 31,
+        "end": 31,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 32,
+        "end": 37,
+        "sha": "0103c95706",
+        "author": "David Lord",
+        "date": "2021-04-24",
+        "summary": "add typing annotations",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 38,
+        "end": 38,
+        "sha": "0f894faab8",
+        "author": "Kevin Yap",
+        "date": "2014-06-01",
+        "summary": "Miscellaneous documentation & docstring changes",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 39,
+        "end": 40,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 62,
+        "end": 62,
+        "sha": "da0a164732",
+        "author": "Armin Ronacher",
+        "date": "2014-05-31",
+        "summary": "Moved textwrap functions into a delayed import to speed up execution time if help is not needed.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 63,
+        "end": 63,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 64,
+        "end": 64,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 65,
+        "end": 70,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 71,
+        "end": 71,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 72,
+        "end": 72,
+        "sha": "d8a7cea172",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "Improve help text formatting.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 73,
+        "end": 73,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 180,
+        "end": 180,
+        "sha": "1a63c21678",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "New line indent relative to length of the prefix",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 181,
+        "end": 181,
+        "sha": "d8a7cea172",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "Improve help text formatting.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 182,
+        "end": 190,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 191,
+        "end": 192,
+        "sha": "d8a7cea172",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "Improve help text formatting.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 193,
+        "end": 193,
+        "sha": "1a63c21678",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "New line indent relative to length of the prefix",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 193,
+        "end": 193,
+        "sha": "1a63c21678",
+        "author": "Mark Thomas",
+        "date": "2015-06-14",
+        "summary": "New line indent relative to length of the prefix",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 194,
+        "end": 200,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 201,
+        "end": 201,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 202,
+        "end": 202,
+        "sha": "93ba3ba112",
+        "author": "David Lord",
+        "date": "2020-03-07",
+        "summary": "apply black",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 203,
+        "end": 203,
+        "sha": "981172fbb4",
+        "author": "Armin Ronacher",
+        "date": "2014-05-02",
+        "summary": "Greatly refactored help formatting by moving it from optparse to a higher level.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ],
+    "tests/test_formatting.py": [
+      {
+        "start": 622,
+        "end": 632,
+        "sha": "0551bf5358",
+        "author": "Kevin Deldycke",
+        "date": "2026-05-16",
+        "summary": "Fix `HelpFormatter.write_usage` producing spurious characters",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ],
+    "CHANGES.md": [
+      {
+        "start": 1,
+        "end": 4,
+        "sha": "a59f7c624f",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-22",
+        "summary": "Start 8.6.0.",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 5,
+        "end": 8,
+        "sha": "b90faad178",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-11",
+        "summary": "Deprecate a parameter name that Click 9.0 will refuse or lower case",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 9,
+        "end": 21,
+        "sha": "9f0bcdf0d8",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-02",
+        "summary": "Add `Parameter.spec` and deprecate `human_readable_name`",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 22,
+        "end": 22,
+        "sha": "b90faad178",
+        "author": "Kevin Deldycke",
+        "date": "2026-09-11",
+        "summary": "Deprecate a parameter name that Click 9.0 will refuse or lower case",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      },
+      {
+        "start": 23,
+        "end": 24,
+        "sha": "f58ca3e814",
+        "author": "Kevin Deldycke",
+        "date": "2026-08-29",
+        "summary": "Fix `copy`, `deepcopy` and `pickle` of `Sentinel` members",
+        "pr": null,
+        "pr_title": null,
+        "pr_url": null
+      }
+    ]
+  },
+  "trace": [
+    {
+      "step": 1,
+      "tool": "grep",
+      "args": {
+        "pattern": "break_on_hyphens|def wrap_text|def write_usage",
+        "path": "src/click"
+      },
+      "summary": "3 matches in 2 files: src/click/formatting.py, src/click/utils.py"
+    },
+    {
+      "step": 1,
+      "tool": "ls",
+      "args": {
+        "directory": "."
+      },
+      "summary": "15 entries"
+    },
+    {
+      "step": 2,
+      "tool": "read",
+      "args": {
+        "path": "src/click/formatting.py",
+        "start_line": 1,
+        "end_line": 200
+      },
+      "summary": "src/click/formatting.py lines 1-200 of 320"
+    },
+    {
+      "step": 2,
+      "tool": "git_log",
+      "args": {
+        "path": "src/click/formatting.py"
+      },
+      "summary": "10 commits, latest: Add type annotations for instance attributes in `formatting`"
+    },
+    {
+      "step": 3,
+      "tool": "read",
+      "args": {
+        "path": "src/click/formatting.py",
+        "start_line": 120,
+        "end_line": 200
+      },
+      "summary": "src/click/formatting.py lines 120-200 of 320"
+    },
+    {
+      "step": 3,
+      "tool": "grep",
+      "args": {
+        "pattern": "break_on_hyphens|class TextWrapper|def _wrap_chunks|def fill|def _split",
+        "path": "src/click/_textwrap.py"
+      },
+      "summary": "2 matches in 1 files: src/click/_textwrap.py"
+    },
+    {
+      "step": 4,
+      "tool": "read",
+      "args": {
+        "path": "src/click/_textwrap.py"
+      },
+      "summary": "src/click/_textwrap.py lines 1-188 of 188"
+    },
+    {
+      "step": 4,
+      "tool": "grep",
+      "args": {
+        "pattern": "write_usage|wrap_text",
+        "path": "tests"
+      },
+      "summary": "17 matches in 1 files: tests/test_formatting.py"
+    },
+    {
+      "step": 5,
+      "tool": "read",
+      "args": {
+        "path": "tests/test_formatting.py",
+        "start_line": 430,
+        "end_line": 640
+      },
+      "summary": "tests/test_formatting.py lines 430-632 of 632"
+    },
+    {
+      "step": 5,
+      "tool": "read",
+      "args": {
+        "path": "src/click/_textwrap.py",
+        "start_line": 120,
+        "end_line": 188
+      },
+      "summary": "src/click/_textwrap.py lines 120-188 of 188"
+    },
+    {
+      "step": 6,
+      "tool": "read",
+      "args": {
+        "path": "tests/test_formatting.py",
+        "start_line": 535,
+        "end_line": 632
+      },
+      "summary": "tests/test_formatting.py lines 535-632 of 632"
+    },
+    {
+      "step": 6,
+      "tool": "search_prs",
+      "args": {
+        "query": "break_on_hyphens usage wrap"
+      },
+      "summary": "8 results: #3782 [rejected AI] Do not break usage line arguments at"
+    },
+    {
+      "step": 7,
+      "tool": "get_pr",
+      "args": {
+        "number": 3837
+      },
+      "summary": "#3837 prevent HelpFormatter.write_usage from breaking options at h (0 review notes)"
+    },
+    {
+      "step": 7,
+      "tool": "get_pr",
+      "args": {
+        "number": 3782
+      },
+      "summary": "#3782 [rejected AI] Do not break usage line arguments at a hyphen (0 review notes)"
+    },
+    {
+      "step": 8,
+      "tool": "search_issues",
+      "args": {
+        "query": "3362 hyphen usage"
+      },
+      "summary": "2 results: #3362 `HelpFormatter.write_usage` breaks options at a hy"
+    },
+    {
+      "step": 8,
+      "tool": "read",
+      "args": {
+        "path": "CHANGES.md",
+        "start_line": 1,
+        "end_line": 30
+      },
+      "summary": "CHANGES.md lines 1-30 of 1707"
+    },
+    {
+      "step": 9,
+      "tool": "grep",
+      "args": {
+        "pattern": "pytest|test",
+        "path": "pyproject.toml"
+      },
+      "summary": "23 matches in 1 files: pyproject.toml"
+    },
+    {
+      "step": 9,
+      "tool": "git_blame",
+      "args": {
+        "path": "src/click/formatting.py",
+        "start_line": 62,
+        "end_line": 72
+      },
+      "summary": "6 blocks"
+    },
+    {
+      "step": 10,
+      "tool": "submit_plan",
+      "args": {
+        "summary": "Issue #3362：`HelpFormatter.write_usage` 通过 `wrap_text` 调用 `textwrap.TextWrapper`，默认 `break_on_hyphens=True`，导致 `--max-retry-count` 这类选项在行宽处被从连字符处拆成 `--max-` / `retry-count`。修复思路：给 `click.formatting.wrap_text` 增加一个 `break_on_hyphens` 参数（默认 `True`，保持帮助文本换行行为不变），并在 `write_usage` 的两个换行分支中传 `break_on_hyphens=False`，让带连字符的选项/`metavar` 整体移到下一行。同时补测试与 CHANGES.md 条目。",
+        "changes": [
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 31,
+            "end_line": 37,
+            "anchor": "    preserve_paragraphs: bool = False,",
+            "what": "在 `wrap_text` 签名末尾新增关键字参数 `break_on_hyphens: bool = True`（建议用 `*,` 使其仅限关键字），并在 docstring 的 `:param` 列表（第 47-54 行）中补充说明，再加一条 `.. versionchanged:: 8.6.0` 说明新增该参数。",
+            "why": "第 62-70 行显示 `wrap_text` 直接构造 `TextWrapper(width, initial_indent=..., subsequent_indent=..., replace_whitespace=False)`，没有暴露 `break_on_hyphens`；issue 的 Cause 一节明确指出用户无法影响该行为，只能重写 `write_usage` 和 `wrap_text`。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 65,
+            "end_line": 70,
+            "anchor": "        replace_whitespace=False,",
+            "what": "在 `TextWrapper(...)` 构造调用中加上 `break_on_hyphens=break_on_hyphens,`。",
+            "why": "这是 `wrap_text` 唯一构造 wrapper 的位置（第 65-70 行），参数必须在这里转发给 `textwrap.TextWrapper` 才会生效。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 183,
+            "end_line": 190,
+            "anchor": "                wrap_text(",
+            "what": "在 `write_usage` 第一个分支（args 与 prefix 同行）的 `wrap_text(args, text_width, initial_indent=usage_prefix, subsequent_indent=indent)` 调用中加 `break_on_hyphens=False`。",
+            "why": "第 180-190 行是 issue 复现输出中发生 `--max-` / `retry-count` 拆分的分支；issue 的 Expected output 要求选项整体换行。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 196,
+            "end_line": 200,
+            "anchor": "                wrap_text(",
+            "what": "在 `write_usage` 第二个分支（prefix 过长、args 另起一行）的 `wrap_text(args, text_width, initial_indent=indent, subsequent_indent=indent)` 调用中同样加 `break_on_hyphens=False`。",
+            "why": "第 191-200 行是另一个换行分支，同样会把带连字符的选项拆开；两个分支需保持一致，否则长 prog 名场景仍会复现。",
+            "confidence": "high"
+          },
+          {
+            "file": "tests/test_formatting.py",
+            "start_line": 625,
+            "end_line": 632,
+            "anchor": "def test_command_write_usage_no_args(runner, command_kwargs, expected_usage_line):",
+            "what": "在文件末尾新增测试：(1) `test_wrap_text_break_on_hyphens`，断言 `wrap_text(\"alpha --max-retry-count\", width=20)` 默认仍按连字符断开，而 `break_on_hyphens=False` 时整体换行；(2) `test_write_usage_does_not_break_options_at_hyphen`，用 issue 中的 10 个选项和 `click.HelpFormatter(width=65)` 断言输出等于 issue 的 Expected output。",
+            "why": "现有 `tests/test_formatting.py` 第 578-590 行的 `test_help_formatter_write_usage` 与第 625-632 行的 `test_command_write_usage_no_args` 是 `write_usage` 的既有测试位置，新测试放在同一文件末尾符合现有组织方式。",
+            "confidence": "high"
+          },
+          {
+            "file": "CHANGES.md",
+            "start_line": 1,
+            "end_line": 21,
+            "anchor": "## Version 8.6.0",
+            "what": "在 `## Version 8.6.0` 的 Unreleased 列表末尾追加一条：`{meth}`HelpFormatter.write_usage` 不再在连字符处拆分参数，`{func}`wrap_text` 新增 `break_on_hyphens` 参数。{issue}`3362`",
+            "why": "第 1-21 行是当前 Unreleased 的 8.6.0 变更列表，条目格式为 `- ... {pr}`NNNN`` / `{issue}`NNNN``。",
+            "confidence": "medium"
+          }
+        ],
+        "tests": [
+          {
+            "file": "tests/test_formatting.py",
+            "command": "pytest tests/test_formatting.py -q",
+            "why": "覆盖 `wrap_text` 与 `HelpFormatter.write_usage` 的既有及新增测试；pyproject.toml 第 83-84 行配置 `testpaths = [\"tests\"]`，依赖组 `tests` 含 pytest。"
+          },
+          {
+            "file": "tests/test_formatting.py",
+            "command": "pytest tests/test_formatting.py -q -k \"write_usage or wrap_text\"",
+            "why": "只跑与本次改动相关的用例，快速验证两个换行分支和 `break_on_hyphens` 转发。"
+          }
+        ],
+        "related_prs": [
+          {
+            "number": 3837,
+            "relevance": "同一 issue 的修复尝试（已关闭未合并），方案与本次一致：给 `wrap_text` 加 `break_on_hyphens` 并在 `write_usage` 传 `False`，测试用 issue 中的 10 个选项与 width=65。",
+            "review_notes": [
+              "该 PR 已关闭未合并，说明方案本身未被接受，提交前需与维护者确认是否走这条路",
+              "PR 中把参数放在 `*` 之后作为仅关键字参数，并同步更新 docstring 与 CHANGES.md"
+            ]
+          },
+          {
+            "number": 3782,
+            "relevance": "更早的同类尝试，同样新增 `break_on_hyphens` 参数并覆盖 `write_usage` 两个分支，附带 `wrap_text` 默认行为不变的测试。",
+            "review_notes": [
+              "标题带 `[rejected AI]` 前缀，说明由 AI 自主提交的 PR 会被拒绝；请人工撰写并确认后再提交",
+              "其测试同时断言默认 `break_on_hyphens=True` 行为不变，可作为回归保护"
+            ]
+          }
+        ],
+        "reviewers": [
+          {
+            "login": "davidism",
+            "why": "formatting.py 与 CHANGES.md 的近期主要维护者（git_log 显示多次提交），且 issue 评论中维护者强调贡献政策。"
+          }
+        ],
+        "conventions": [
+          "CHANGES.md 在对应版本的 Unreleased 列表下用 `- 描述 {issue}`NNNN`` / `{pr}`NNNN`` 格式追加条目（见 CHANGES.md 第 5-21 行）。",
+          "公共 API 变更需在 docstring 中加 `.. versionchanged::` 说明（formatting.py 第 56-60 行已有先例）。",
+          "测试放在 tests/test_formatting.py，使用 pytest 参数化与 `pytest.param(..., id=...)` 风格（第 439-486、520-577 行）。",
+          "维护者明确不接受由 LLM agent 自主提交的 issue/PR（issue 评论引用 palletsprojects.com/contributing/llm-ai），提交前需人工确认。"
+        ],
+        "open_questions": [
+          "是否接受新增公共参数 `break_on_hyphens`，还是仅在 `write_usage` 内部硬编码 `break_on_hyphens=False`（不改变 `wrap_text` 签名）？此前 #3782、#3837 两个采用新增参数的 PR 均被关闭未合并，需维护者确认方向。",
+          "`write_usage` 关闭连字符断行后，超长单个选项（本身超过行宽）仍会由 `_handle_long_word` 硬切，这是否可接受？",
+          "CHANGES.md 应记入 8.6.0 还是 8.5.1 的 Unreleased 段（当前两段都存在，见第 1-25 行）？"
+        ]
+      },
+      "summary": "✗ plan_rejected: "
+    },
+    {
+      "step": 11,
+      "tool": "submit_plan",
+      "args": {
+        "summary": "Issue #3362：`HelpFormatter.write_usage` 通过 `wrap_text` 调用 `textwrap.TextWrapper`，默认 `break_on_hyphens=True`，导致 `--max-retry-count` 这类选项在行宽处被从连字符处拆成 `--max-` / `retry-count`。修复思路：给 `click.formatting.wrap_text` 增加一个 `break_on_hyphens` 参数（默认 `True`，保持帮助文本换行行为不变），并在 `write_usage` 的两个换行分支中传 `break_on_hyphens=False`，让带连字符的选项/`metavar` 整体移到下一行。同时补测试与 CHANGES.md 条目。",
+        "changes": [
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 31,
+            "end_line": 37,
+            "anchor": "    preserve_paragraphs: bool = False,",
+            "what": "在 `wrap_text` 签名末尾新增关键字参数 `break_on_hyphens: bool = True`（建议用 `*,` 使其仅限关键字），并在 docstring 的 `:param` 列表（第 47-54 行）中补充说明，再加一条 `.. versionchanged:: 8.6.0` 说明新增该参数。",
+            "why": "第 62-70 行显示 `wrap_text` 直接构造 `TextWrapper(width, initial_indent=..., subsequent_indent=..., replace_whitespace=False)`，没有暴露 `break_on_hyphens`；issue 的 Cause 一节明确指出用户无法影响该行为，只能重写 `write_usage` 和 `wrap_text`。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 65,
+            "end_line": 70,
+            "anchor": "        replace_whitespace=False,",
+            "what": "在 `TextWrapper(...)` 构造调用中加上 `break_on_hyphens=break_on_hyphens,`。",
+            "why": "这是 `wrap_text` 唯一构造 wrapper 的位置（第 65-70 行），参数必须在这里转发给 `textwrap.TextWrapper` 才会生效。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 183,
+            "end_line": 190,
+            "anchor": "                wrap_text(",
+            "what": "在 `write_usage` 第一个分支（args 与 prefix 同行）的 `wrap_text(args, text_width, initial_indent=usage_prefix, subsequent_indent=indent)` 调用中加 `break_on_hyphens=False`。",
+            "why": "第 180-190 行是 issue 复现输出中发生 `--max-` / `retry-count` 拆分的分支；issue 的 Expected output 要求选项整体换行。",
+            "confidence": "high"
+          },
+          {
+            "file": "src/click/formatting.py",
+            "start_line": 196,
+            "end_line": 200,
+            "anchor": "                wrap_text(",
+            "what": "在 `write_usage` 第二个分支（prefix 过长、args 另起一行）的 `wrap_text(args, text_width, initial_indent=indent, subsequent_indent=indent)` 调用中同样加 `break_on_hyphens=False`。",
+            "why": "第 191-200 行是另一个换行分支，同样会把带连字符的选项拆开；两个分支需保持一致，否则长 prog 名场景仍会复现。",
+            "confidence": "high"
+          },
+          {
+            "file": "tests/test_formatting.py",
+            "start_line": 625,
+            "end_line": 632,
+            "anchor": "def test_command_write_usage_no_args(runner, command_kwargs, expected_usage_line):",
+            "what": "在文件末尾新增测试：(1) `test_wrap_text_break_on_hyphens`，断言 `wrap_text(\"alpha --max-retry-count\", width=20)` 默认仍按连字符断开，而 `break_on_hyphens=False` 时整体换行；(2) `test_write_usage_does_not_break_options_at_hyphen`，用 issue 中的 10 个选项和 `click.HelpFormatter(width=65)` 断言输出等于 issue 的 Expected output。",
+            "why": "现有 `tests/test_formatting.py` 第 578-590 行的 `test_help_formatter_write_usage` 与第 625-632 行的 `test_command_write_usage_no_args` 是 `write_usage` 的既有测试位置，新测试放在同一文件末尾符合现有组织方式。",
+            "confidence": "high"
+          },
+          {
+            "file": "CHANGES.md",
+            "start_line": 1,
+            "end_line": 21,
+            "anchor": "## Version 8.6.0",
+            "what": "在 `## Version 8.6.0` 的 Unreleased 列表末尾追加一条：`{meth}`HelpFormatter.write_usage` 不再在连字符处拆分参数，`{func}`wrap_text` 新增 `break_on_hyphens` 参数。{issue}`3362`",
+            "why": "第 1-21 行是当前 Unreleased 的 8.6.0 变更列表，条目格式为 `- ... {pr}`NNNN`` / `{issue}`NNNN``。",
+            "confidence": "medium"
+          }
+        ],
+        "tests": [
+          {
+            "file": "tests/test_formatting.py",
+            "command": "pytest tests/test_formatting.py -q",
+            "why": "覆盖 `wrap_text` 与 `HelpFormatter.write_usage` 的既有及新增测试；pyproject.toml 第 83-84 行配置 `testpaths = [\"tests\"]`，依赖组 `tests` 含 pytest。"
+          },
+          {
+            "file": "tests/test_formatting.py",
+            "command": "pytest tests/test_formatting.py -q -k \"write_usage or wrap_text\"",
+            "why": "只跑与本次改动相关的用例，快速验证两个换行分支和 `break_on_hyphens` 转发。"
+          }
+        ],
+        "related_prs": [
+          {
+            "number": 3837,
+            "relevance": "同一 issue 的修复尝试（已关闭未合并），方案与本次一致：给 `wrap_text` 加 `break_on_hyphens` 并在 `write_usage` 传 `False`，测试用 issue 中的 10 个选项与 width=65。",
+            "review_notes": [
+              "该 PR 已关闭未合并，说明方案本身未被接受，提交前需与维护者确认是否走这条路",
+              "PR 中把参数放在 `*` 之后作为仅关键字参数，并同步更新 docstring 与 CHANGES.md"
+            ]
+          },
+          {
+            "number": 3782,
+            "relevance": "更早的同类尝试，同样新增 `break_on_hyphens` 参数并覆盖 `write_usage` 两个分支，附带 `wrap_text` 默认行为不变的测试。",
+            "review_notes": [
+              "标题带 `[rejected AI]` 前缀，说明由 AI 自主提交的 PR 会被拒绝；请人工撰写并确认后再提交",
+              "其测试同时断言默认 `break_on_hyphens=True` 行为不变，可作为回归保护"
+            ]
+          }
+        ],
+        "conventions": [
+          "CHANGES.md 在对应版本的 Unreleased 列表下用 `- 描述 {issue}`NNNN`` / `{pr}`NNNN`` 格式追加条目（见 CHANGES.md 第 5-21 行）。",
+          "公共 API 变更需在 docstring 中加 `.. versionchanged::` 说明（formatting.py 第 56-60 行已有先例）。",
+          "测试放在 tests/test_formatting.py，使用 pytest 参数化与 `pytest.param(..., id=...)` 风格（第 439-486、520-577 行）。",
+          "维护者明确不接受由 LLM agent 自主提交的 issue/PR（issue 评论引用 palletsprojects.com/contributing/llm-ai），提交前需人工确认。"
+        ],
+        "open_questions": [
+          "是否接受新增公共参数 `break_on_hyphens`，还是仅在 `write_usage` 内部硬编码 `break_on_hyphens=False`（不改变 `wrap_text` 签名）？此前 #3782、#3837 两个采用新增参数的 PR 均被关闭未合并，需维护者确认方向。",
+          "`write_usage` 关闭连字符断行后，超长单个选项（本身超过行宽）仍会由 `_handle_long_word` 硬切，这是否可接受？",
+          "CHANGES.md 应记入 8.6.0 还是 8.5.1 的 Unreleased 段（当前两段都存在，见第 1-25 行）？"
+        ]
+      },
+      "summary": "accepted"
+    }
+  ],
+  "run": {
+    "model": "deepseek-chat",
+    "use_history": true,
+    "steps": 11,
+    "tool_calls": 20,
+    "tokens": 125739,
+    "cached_tokens": 104704,
+    "seconds": 76.6,
+    "stop_reason": "submitted",
+    "plan_rejections": 1
+  }
+}

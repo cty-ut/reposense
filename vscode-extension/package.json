@@ -1,0 +1,106 @@
+{
+  "name": "reposense",
+  "displayName": "RepoSense",
+  "description": "Map an open-source repository, see how each file evolved through PRs, and find your first contribution.",
+  "version": "0.2.0",
+  "publisher": "cty-ut",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cty-ut/reposense"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "RepoSense runs git and a local Python backend on the repository."
+    }
+  },
+  "contributes": {
+    "commands": [
+      { "command": "reposense.start", "title": "Open a GitHub Repository…", "category": "RepoSense", "icon": "$(repo-clone)" },
+      { "command": "reposense.openMap", "title": "Show Repository Map", "category": "RepoSense", "icon": "$(type-hierarchy)" },
+      { "command": "reposense.refreshMap", "title": "Re-analyze Repository Structure", "category": "RepoSense" },
+      { "command": "reposense.setKeys", "title": "Set API Keys", "category": "RepoSense" },
+      { "command": "reposense.restartBackend", "title": "Restart Backend", "category": "RepoSense" },
+      { "command": "reposense.showCommit", "title": "Show Commit Details", "category": "RepoSense" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "reposense", "title": "RepoSense", "icon": "media/icon.svg" }
+      ]
+    },
+    "views": {
+      "reposense": [
+        { "id": "reposense.file", "name": "File Insights", "type": "webview" }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        { "command": "reposense.openMap", "when": "view == reposense.file", "group": "navigation@1" },
+        { "command": "reposense.start", "when": "view == reposense.file", "group": "navigation@2" }
+      ],
+      "commandPalette": [
+        { "command": "reposense.showCommit", "when": "false" }
+      ]
+    },
+    "configuration": {
+      "title": "RepoSense",
+      "properties": {
+        "reposense.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Python interpreter that has the `reposense` package installed."
+        },
+        "reposense.language": {
+          "type": "string",
+          "default": "Chinese",
+          "description": "Language of generated explanations."
+        },
+        "reposense.historyLimit": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "How many recent commits of a file to show and highlight."
+        },
+        "reposense.cloneDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Default parent folder for repositories cloned by RepoSense (empty: ~/RepoSense)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p ./",
+    "package": "npm run typecheck && npm run build && vsce package --allow-missing-repository --skip-license"
+  },
+  "dependencies": {
+    "d3-hierarchy": "^3.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.23.1",
+    "typescript": "^5.4.0"
+  }
+}
