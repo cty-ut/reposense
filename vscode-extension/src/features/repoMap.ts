@@ -15,6 +15,7 @@ export class RepoMapPanel implements vscode.Disposable {
     private readonly extensionUri: vscode.Uri,
     private readonly backend: Backend,
     private readonly root: () => string | undefined,
+    private readonly onFileOpened: () => void,  // e.g. show the file's analysis
   ) {
     this.subs.push(vscode.window.onDidChangeActiveTextEditor((e) => this.post({ type: 'activeFile', path: this.rel(e) })));
   }
@@ -96,7 +97,7 @@ export class RepoMapPanel implements vscode.Disposable {
     } else if (m.type === 'openFile') {
       const uri = vscode.Uri.joinPath(vscode.Uri.file(this.root()!), m.path);
       await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: false });
-      await vscode.commands.executeCommand('reposense.file.focus');
+      this.onFileOpened();
     }
   }
 

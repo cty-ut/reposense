@@ -15,8 +15,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const history = new HistoryDecorator();
   const plans = new PlanDecorator();
   const onboarding = new Onboarding(context, backend);
-  const map = new RepoMapPanel(context.extensionUri, backend, root);
   const file = new FileInsightsView(context.extensionUri, backend, history, plans, root);
+  const map = new RepoMapPanel(context.extensionUri, backend, root, () => file.showTab('insight'));
 
   const needsKeys = async () => (await onboarding.ensureBackend()) && (backend.hasKeys() || onboarding.ensureKeys());
 

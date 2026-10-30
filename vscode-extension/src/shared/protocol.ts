@@ -192,6 +192,8 @@ export type FromMapView =
   | { type: 'refresh' };
 
 /** File Insights view: host → webview */
+export type FileTab = 'history' | 'insight' | 'contribute';
+
 export type ToFileView =
   | { type: 'file'; path: string | null; repo: string | null }
   | { type: 'history'; value: Load<FileHistory> }
@@ -199,7 +201,8 @@ export type ToFileView =
   | { type: 'insight'; value: Load<FileInsight> }
   | { type: 'opportunities'; value: Load<Opportunities> }
   | { type: 'plan'; number: number; value: Load<PlanResult>; events: PlanEvent[] }
-  | { type: 'focus'; sha: string | null };
+  | { type: 'focus'; sha: string | null }
+  | { type: 'tab'; tab: FileTab };
 
 /** File Insights view: webview → host */
 export type FromFileView =
