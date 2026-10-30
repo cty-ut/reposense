@@ -1,7 +1,8 @@
 // Right-hand panel of the map: details of the focused/hovered node, layer legend, hottest files.
-import { layerColor } from '../../shared/palette';
-import { MapNode, RepoStructure } from '../../shared/protocol';
-import { compact } from '../format';
+import { layerColor, USED_BY_COLOR, USES_COLOR } from '../../shared/palette';
+import { Dependencies, Load, MapNode, RepoStructure } from '../../shared/protocol';
+import { basename, compact } from '../format';
+import { DependencyIndex, Related } from './graphLayout';
 
 const KIND_LABEL: Record<MapNode['kind'], string> = { repo: '仓库', layer: '架构层', dir: '目录', file: '文件' };
 const LANG_COLORS = ['#4f9cf9', '#f5a524', '#17c964', '#9353d3', '#f31260'];
@@ -17,11 +18,13 @@ interface Props {
   structure: RepoStructure;
   node: MapNode;
   layerKinds: Record<string, string>;
+  deps: Load<Dependencies>;
+  index: DependencyIndex | null;
   onZoom: (node: MapNode) => void;
   onOpenFile: (path: string) => void;
 }
 
-export function MapSidebar({ structure, node, layerKinds, onZoom, onOpenFile }: Props) {
+export function MapSidebar({ structure, node, layerKinds, deps, index, onZoom, onOpenFile }: Props) {
   const kind = node.kind === 'layer' ? node.layer_kind : layerKinds[node.layer ?? ''];
   const langs = Object.entries(node.languages ?? (node.language ? { [node.language]: node.lines } : {}));
   const langTotal = langs.reduce((s, [, n]) => s + n, 0) || 1;
@@ -67,6 +70,20 @@ export function MapSidebar({ structure, node, layerKinds, onZoom, onOpenFile }: 
         </div>
       )}
 
+      {node.kind === 'file' && (
+        index ? (
+          <>
+            <RelationList title="它依赖" hint="这个文件 import 的文件" color={USES_COLOR} items={index.uses(node.path)} onOpen={onOpenFile} />
+            <RelationList title="被谁依赖" hint="import 了这个文件的代码；改动它可能影响这些文件" color={USED_BY_COLOR}
+                          items={index.usedBy(node.path)} onOpen={onOpenFile} />
+            <RelationList title="对应的测试" hint="import 了这个文件的测试；改完后先跑这些" color={USED_BY_COLOR}
+                          items={index.testedBy(node.path)} onOpen={onOpenFile} />
+          </>
+        ) : (
+          <p className="muted small">{deps.state === 'error' ? `依赖分析失败：${deps.message}` : '正在分析 import 关系…'}</p>
+        )
+      )}
+
       {hot.length > 0 && node.kind !== 'file' && (
         <>
           <div className="section-title">最近改动最频繁</div>
@@ -94,5 +111,28 @@ export function MapSidebar({ structure, node, layerKinds, onZoom, onOpenFile }: 
         </>
       )}
     </aside>
+  );
+}
+
+const SHOWN = 8;
+
+function RelationList({ title, hint, color, items, onOpen }: {
+  title: string; hint: string; color: string; items: Related[]; onOpen: (path: string) => void;
+}) {
+  return (
+    <>
+      <div className="section-title" title={hint}>{title}（{items.length}）</div>
+      {items.length === 0 && <div className="muted small">无</div>}
+      <div className="rel-list">
+        {items.slice(0, SHOWN).map((r) => (
+          <div key={r.path} className="hotfile" onClick={() => onOpen(r.path)} title={r.path}>
+            <span className="dot" style={{ background: color }} />
+            <span className="grow ellipsis">{basename(r.path)}</span>
+            <span className="badge" title="import 语句和引用的次数">{r.weight} 处</span>
+          </div>
+        ))}
+        {items.length > SHOWN && <div className="muted small">还有 {items.length - SHOWN} 个</div>}
+      </div>
+    </>
   );
 }

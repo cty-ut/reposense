@@ -12,6 +12,8 @@
   --selected: var(--vscode-list-activeSelectionBackground);
   --mono: var(--vscode-editor-font-family);
   --radius: 8px;
+  --uses: #2f6fdf;      /* keep in sync with USES_COLOR in shared/palette.ts */
+  --used-by: #1f9d55;   /* USED_BY_COLOR */
   --add: #3fb950;
   --del: #f85149;
 }
@@ -101,6 +103,36 @@ code, .mono { font-family: var(--mono); font-size: 12px; }
 .leaf-label.big .name { font-weight: 600; font-size: 12.5px; }
 .heatbar { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 0 2px 0 3px; }
 .frame.active, .leaf.active { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+.leaf.dim { opacity: 0.3; }
+.leaf.rel-self { outline: 2px solid var(--fg); outline-offset: -2px; z-index: 2; }
+.leaf.rel-uses { outline: 2px solid var(--uses); outline-offset: -2px; z-index: 2; }
+.leaf.rel-used-by { outline: 2px solid var(--used-by); outline-offset: -2px; z-index: 2; }
+
+.graph-wrap { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.graph-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 16px 0; }
+.graph-legend .arrow { display: inline-block; width: 22px; border-top: 2px solid var(--muted); vertical-align: middle; margin-right: 4px; }
+.graph-legend .arrow.dashed { border-top-style: dashed; }
+.graph-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; }
+.graph-stage { position: absolute; transform-origin: 0 0; }
+.graph-edges { position: absolute; inset: 0; color: var(--muted); pointer-events: none; }
+.graph-edges .edge { fill: none; opacity: 0.45; transition: opacity 0.15s; }
+.graph-edges .edge.uses, .graph-edges .edge.used-by { opacity: 0.95; }
+.graph-edges .edge.faded { opacity: 0.08; }
+.gnode {
+  position: absolute; padding: 6px 10px; border-radius: 8px; cursor: pointer; line-height: 1.35;
+  background: var(--card); border: 1px solid var(--border); border-left-width: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); transition: opacity 0.15s, box-shadow 0.15s;
+}
+.gnode:hover, .gnode.hot { box-shadow: 0 0 0 2px var(--accent); }
+.gnode.dim { opacity: 0.3; }
+.gname { font-weight: 600; font-size: 12.5px; }
+.graph-isolated { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 16px 12px; border-top: 1px solid var(--border); }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--card); font-size: 11.5px;
+}
+.chip:hover { background: var(--hover); }
+.rel-list .hotfile .dot { flex: none; }
 
 .map-side { border-left: 1px solid var(--border); padding: 14px; overflow: auto; background: var(--panel); }
 .map-side h3 { margin: 0 0 2px; font-size: 15px; word-break: break-all; }

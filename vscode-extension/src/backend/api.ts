@@ -1,7 +1,7 @@
 // Typed facade over the backend RPC methods. Features call this, never RpcClient directly.
 import * as vscode from 'vscode';
 import {
-  CommitDetail, FileHistory, FileInsight, Opportunities, PlanEvent, PlanResult, RepoStructure,
+  CommitDetail, Dependencies, FileHistory, FileInsight, Opportunities, PlanEvent, PlanResult, RepoStructure,
 } from '../shared/protocol';
 import { RpcClient } from './rpcClient';
 
@@ -86,6 +86,10 @@ export class Backend implements vscode.Disposable {
 
   structure(refresh = false): Promise<RepoStructure> {
     return this.rpc.request('repo.structure', { refresh });
+  }
+
+  dependencies(refresh = false): Promise<Dependencies> {
+    return this.rpc.request('repo.dependencies', { refresh });
   }
 
   fileHistory(path: string, limit: number): Promise<FileHistory> {

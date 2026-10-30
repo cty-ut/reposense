@@ -1,12 +1,13 @@
 // Repository map panel: loads the structure from the backend and opens files the user clicks.
 import * as vscode from 'vscode';
 import { Backend } from '../backend/api';
-import { FromMapView, RepoStructure, ToMapView } from '../shared/protocol';
+import { Dependencies, FromMapView, RepoStructure, ToMapView } from '../shared/protocol';
 import { webviewHtml, webviewOptions } from './webviewHtml';
 
 export class RepoMapPanel implements vscode.Disposable {
   private panel?: vscode.WebviewPanel;
   private structure?: RepoStructure;
+  private dependencies?: Dependencies;
   private readonly subs: vscode.Disposable[] = [];
 
   constructor(
@@ -41,6 +42,16 @@ export class RepoMapPanel implements vscode.Disposable {
     this.post({ type: 'structure', value: { state: 'loading', message: '正在读取文件和提交历史，并让模型归类架构层…' } });
     try {
       await this.backend.ensureRepo(root);
+    } catch (err) {
+      this.post({ type: 'structure', value: { state: 'error', message: (err as Error).message } });
+      return;
+    }
+    // Independent: the map still works if the import graph fails, and vice versa.
+    await Promise.all([this.loadStructure(refresh), this.loadDependencies(refresh)]);
+  }
+
+  private async loadStructure(refresh: boolean): Promise<void> {
+    try {
       this.structure = await this.backend.structure(refresh);
       this.post({ type: 'structure', value: { state: 'ready', data: this.structure } });
     } catch (err) {
@@ -48,9 +59,20 @@ export class RepoMapPanel implements vscode.Disposable {
     }
   }
 
+  private async loadDependencies(refresh: boolean): Promise<void> {
+    this.post({ type: 'dependencies', value: { state: 'loading' } });
+    try {
+      this.dependencies = await this.backend.dependencies(refresh);
+      this.post({ type: 'dependencies', value: { state: 'ready', data: this.dependencies } });
+    } catch (err) {
+      this.post({ type: 'dependencies', value: { state: 'error', message: (err as Error).message } });
+    }
+  }
+
   private async onMessage(m: FromMapView): Promise<void> {
     if (m.type === 'ready') {
       if (this.structure) this.post({ type: 'structure', value: { state: 'ready', data: this.structure } });
+      if (this.dependencies) this.post({ type: 'dependencies', value: { state: 'ready', data: this.dependencies } });
       this.post({ type: 'activeFile', path: this.rel(vscode.window.activeTextEditor) });
     } else if (m.type === 'refresh') {
       await this.load(true);
