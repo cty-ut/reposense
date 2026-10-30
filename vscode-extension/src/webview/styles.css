@@ -101,6 +101,10 @@ code, .mono { font-family: var(--mono); font-size: 12px; }
 .leaf-label { position: absolute; inset: 3px 6px; font-size: 11px; line-height: 1.35; color: var(--fg); pointer-events: none; }
 .leaf-label.big { inset: 7px 9px; font-size: 12px; }
 .leaf-label.big .name { font-weight: 600; font-size: 12.5px; }
+.leaf-desc {
+  margin-top: 4px; font-size: 11.5px; line-height: 16px; opacity: 0.85;
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
 .heatbar { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 0 2px 0 3px; }
 .frame.active, .leaf.active { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
 .leaf.dim { opacity: 0.3; }

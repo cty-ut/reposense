@@ -1,13 +1,14 @@
 // Repository map panel: loads the structure from the backend and opens files the user clicks.
 import * as vscode from 'vscode';
 import { Backend } from '../backend/api';
-import { Dependencies, FromMapView, RepoStructure, ToMapView } from '../shared/protocol';
+import { Dependencies, FileSummaries, FromMapView, RepoStructure, ToMapView } from '../shared/protocol';
 import { webviewHtml, webviewOptions } from './webviewHtml';
 
 export class RepoMapPanel implements vscode.Disposable {
   private panel?: vscode.WebviewPanel;
   private structure?: RepoStructure;
   private dependencies?: Dependencies;
+  private summaries?: FileSummaries;
   private readonly subs: vscode.Disposable[] = [];
 
   constructor(
@@ -46,8 +47,8 @@ export class RepoMapPanel implements vscode.Disposable {
       this.post({ type: 'structure', value: { state: 'error', message: (err as Error).message } });
       return;
     }
-    // Independent: the map still works if the import graph fails, and vice versa.
-    await Promise.all([this.loadStructure(refresh), this.loadDependencies(refresh)]);
+    // Independent: the map still works if the import graph or the descriptions fail, and vice versa.
+    await Promise.all([this.loadStructure(refresh), this.loadDependencies(refresh), this.loadSummaries(refresh)]);
   }
 
   private async loadStructure(refresh: boolean): Promise<void> {
@@ -69,10 +70,26 @@ export class RepoMapPanel implements vscode.Disposable {
     }
   }
 
+  private async loadSummaries(refresh: boolean): Promise<void> {
+    const loading = (percent?: number) => this.post({ type: 'summaries', value: {
+      state: 'loading', message: `正在为每个文件生成一句话说明${percent === undefined ? '' : ` ${percent}%`}…` } });
+    loading();
+    const sub = this.backend.onProgress((p) => p.task === 'summaries' && loading(p.percent));
+    try {
+      this.summaries = await this.backend.summaries(refresh);
+      this.post({ type: 'summaries', value: { state: 'ready', data: this.summaries } });
+    } catch (err) {
+      this.post({ type: 'summaries', value: { state: 'error', message: (err as Error).message } });
+    } finally {
+      sub.dispose();
+    }
+  }
+
   private async onMessage(m: FromMapView): Promise<void> {
     if (m.type === 'ready') {
       if (this.structure) this.post({ type: 'structure', value: { state: 'ready', data: this.structure } });
       if (this.dependencies) this.post({ type: 'dependencies', value: { state: 'ready', data: this.dependencies } });
+      if (this.summaries) this.post({ type: 'summaries', value: { state: 'ready', data: this.summaries } });
       this.post({ type: 'activeFile', path: this.rel(vscode.window.activeTextEditor) });
     } else if (m.type === 'refresh') {
       await this.load(true);
