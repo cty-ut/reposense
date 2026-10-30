@@ -59,8 +59,8 @@
       "properties": {
         "reposense.pythonPath": {
           "type": "string",
-          "default": "python",
-          "description": "Python interpreter that has the `reposense` package installed."
+          "default": "",
+          "description": "Leave empty to use the backend bundled with the extension. To run the backend from source, set a Python interpreter that has the `reposense` package installed."
         },
         "reposense.language": {
           "type": "string",
@@ -86,6 +86,7 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit -p ./",
+    "build:backend": "python ../packaging/build_backend.py",
     "package": "npm run typecheck && npm run build && vsce package --allow-missing-repository --skip-license"
   },
   "dependencies": {

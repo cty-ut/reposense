@@ -21,6 +21,12 @@ RepoSense 由两部分组成：一个 **VS Code 扩展**（TypeScript，负责�
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## 打包
+
+用户不需要 Python：`packaging/build_backend.py` 用 PyInstaller 把后端（只含 `server`，不含命令行）打成单个可执行文件，放进 `vscode-extension/bin/`，随该平台的 `.vsix` 一起分发。`packaging/smoke_backend.py` 按扩展的方式通过 stdio 调用它做冒烟测试。`.github/workflows/release.yml` 在 Windows / Linux / macOS 上分别打包和测试。
+
+扩展启动后端的顺序：设置里填了 `reposense.pythonPath` → 用它运行 `python -m reposense serve`（开发用）；否则用打包好的可执行文件；都没有时退回 `python`。
+
 ## 依赖方向
 
 只允许上层依赖下层：

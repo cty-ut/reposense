@@ -21,12 +21,19 @@ Claude Code 这类通用编程 Agent 擅长读懂*当前的代码*。RepoSense �
 
 ## 安装
 
-需要 Python 3.11+、git、Node.js 18+（仅构建扩展时需要）。
+**直接使用（推荐）：** 只需要 VS Code 和 git，不需要 Python。从 GitHub Actions 的 [Build extension](../../actions/workflows/release.yml) 运行结果里下载对应平台的 `.vsix`（Windows / Linux / macOS），然后：
+
+```bash
+code --install-extension reposense-win32-x64-0.2.0.vsix
+```
+
+**从源码构建：** 需要 Python 3.11+、git、Node.js 18+。
 
 ```bash
 git clone https://github.com/cty-ut/reposense.git && cd reposense
 python -m venv .venv && .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]" pyinstaller
+python packaging/build_backend.py                     # 把后端打包进 vscode-extension/bin/
 
 cd vscode-extension
 npm install
@@ -34,12 +41,13 @@ npm run package                                       # 生成 reposense-<versio
 code --install-extension reposense-0.2.0.vsix
 ```
 
+开发后端时不想每次重新打包，可以在设置里把 `reposense.pythonPath` 指向上面虚拟环境里的 Python，扩展就会改用 `python -m reposense serve`。
+
 首次使用时，扩展会依次引导：
 
-1. **选择 Python 解释器**：选上面虚拟环境里的 Python，也就是装了 reposense 的那个。
-2. **GitHub 授权**：直接用 VS Code 的 GitHub 账号登录。
-3. **填写 DeepSeek API Key**：存入 VS Code 的加密存储，不写进任何文件。
-4. **输入想贡献的仓库链接**。克隆完成后 VS Code 会打开这个文件夹；如果顶部出现 Restricted Mode 提示，点 **Trust** 信任它，RepoSense 才会运行。
+1. **GitHub 授权**：直接用 VS Code 的 GitHub 账号登录。
+2. **填写 DeepSeek API Key**：存入 VS Code 的加密存储，不写进任何文件。
+3. **输入想贡献的仓库链接**。克隆完成后 VS Code 会打开这个文件夹；如果顶部出现 Restricted Mode 提示，点 **Trust** 信任它，RepoSense 才会运行。
 
 ## 命令行（调试用）
 
