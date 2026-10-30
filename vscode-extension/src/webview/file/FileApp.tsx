@@ -1,6 +1,6 @@
 // File Insights page: holds the state for the active file and switches between the three tabs.
 import { useCallback, useEffect, useState } from 'react';
-import { CommitDetail, FileHistory, FileInsight, FromFileView, Load, Opportunities, ToFileView } from '../../shared/protocol';
+import { CommitDetail, FileHistory, FileInsight, FileTab, FromFileView, Load, Opportunities, ToFileView } from '../../shared/protocol';
 import { Loadable } from '../components/ui';
 import { basename } from '../format';
 import { post, useHostMessages } from '../vscodeApi';
@@ -8,13 +8,12 @@ import { ContributeTab, PlanState } from './ContributeTab';
 import { HistoryTab } from './HistoryTab';
 import { InsightTab } from './InsightTab';
 
-type Tab = 'history' | 'insight' | 'contribute';
 const send = (m: FromFileView) => post(m);
 const idle = { state: 'idle' } as const;
 
 export function FileApp() {
   const [path, setPath] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('history');
+  const [tab, setTab] = useState<FileTab>('history');
   const [history, setHistory] = useState<Load<FileHistory>>(idle);
   const [insight, setInsight] = useState<Load<FileInsight>>(idle);
   const [opps, setOpps] = useState<Load<Opportunities>>(idle);
@@ -34,6 +33,7 @@ export function FileApp() {
       case 'detail': setDetails((d) => ({ ...d, [m.sha]: m.value })); break;
       case 'plan': setPlan({ number: m.number, value: m.value, events: m.events }); setTab('contribute'); break;
       case 'focus': setSelected(m.sha); setTab('history'); break;
+      case 'tab': setTab(m.tab); break;
     }
   }, []));
 

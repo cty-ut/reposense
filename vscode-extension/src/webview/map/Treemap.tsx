@@ -26,6 +26,7 @@ interface Props {
   mode: ColorMode;
   activePath: string | null;
   relations: Relations | null;
+  steps: Map<string, number> | null;  // file path -> step of the reading order
   onZoom: (node: MapNode) => void;
   onOpenFile: (path: string) => void;
   onHover: (node: MapNode | null, x?: number, y?: number) => void;
@@ -52,7 +53,7 @@ function relationClass(n: MapNode, r: Relations | null): string {
   return ' dim';
 }
 
-export function Treemap({ focus, layerKinds, mode, activePath, relations, onZoom, onOpenFile, onHover }: Props) {
+export function Treemap({ focus, layerKinds, mode, activePath, relations, steps, onZoom, onOpenFile, onHover }: Props) {
   const { ref, w, h } = useSize();
 
   const layout = useMemo(() => {
@@ -119,8 +120,9 @@ export function Treemap({ focus, layerKinds, mode, activePath, relations, onZoom
         const folded = n.kind !== 'file';
         const big = box.width > 110 && box.height > 60;
         const border = mode === 'size' ? withAlpha(colorOf(n), 0.35) : 'transparent';
+        const step = n.kind === 'file' ? steps?.get(n.path) : undefined;
         return (
-          <div key={n.id} className={`leaf${folded ? ' folded' : ''}${cls}${relationClass(n, relations)}`}
+          <div key={n.id} className={`leaf${folded ? ' folded' : ''}${cls}${relationClass(n, relations)}${step ? ' on-route' : ''}`}
                style={{ ...box, background: tileFill(n), borderColor: border }} {...events}>
             {box.width > 44 && box.height > 18 && (
               <div className={`leaf-label${big ? ' big' : ''}`}>
@@ -137,6 +139,7 @@ export function Treemap({ focus, layerKinds, mode, activePath, relations, onZoom
                 )}
               </div>
             )}
+            {step && <span className="step-badge">{step}</span>}
             {mode === 'size' && n.churn > 0 && box.width > 24 && box.height > 12 && (
               <div className="heatbar" title={`近一年 ${n.churn} 次改动`}
                    style={{ width: `${Math.max(8, 100 * heat(n))}%`, background: withAlpha(HEAT, 0.35 + 0.5 * heat(n)) }} />

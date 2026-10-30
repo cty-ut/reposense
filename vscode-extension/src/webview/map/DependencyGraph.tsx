@@ -16,6 +16,7 @@ interface Props {
   focus: MapNode;
   layerKinds: Record<string, string>;
   index: DependencyIndex | null;
+  steps: Map<string, number> | null;  // file path -> step of the reading order
   onZoom: (node: MapNode) => void;
   onOpenFile: (path: string) => void;
   onHover: (node: MapNode | null, x?: number, y?: number) => void;
@@ -46,7 +47,7 @@ function edgePath(s: Placed, t: Placed, back: boolean, direction: Direction): st
 const fitScale = (l: Layout, w: number, h: number) =>
   Math.min(1.1, (w - 2 * PAD) / Math.max(1, l.width), (h - 2 * PAD) / Math.max(1, l.height));
 
-export function DependencyGraph({ focus, layerKinds, index, onZoom, onOpenFile, onHover }: Props) {
+export function DependencyGraph({ focus, layerKinds, index, steps, onZoom, onOpenFile, onHover }: Props) {
   const { ref, w, h } = useSize();
   const [hot, setHot] = useState<string | null>(null);
 
@@ -111,11 +112,13 @@ export function DependencyGraph({ focus, layerKinds, index, onZoom, onOpenFile, 
             </svg>
             {layout.placed.map(({ node, x, y }) => {
               const dim = neighbours && hot !== node.id && !neighbours.has(node.id);
+              const step = node.kind === 'file' ? steps?.get(node.path) : undefined;
               return (
-                <div key={node.id} className={`gnode${dim ? ' dim' : ''}${hot === node.id ? ' hot' : ''}`}
+                <div key={node.id} className={`gnode${dim ? ' dim' : ''}${hot === node.id ? ' hot' : ''}${step ? ' on-route' : ''}`}
                      style={{ left: x, top: y, width: NODE_W, height: NODE_H, borderLeftColor: colorOf(node) }}
                      onMouseMove={(e) => { setHot(node.id); onHover(node, e.clientX, e.clientY); }}
                      onClick={() => open(node)}>
+                  {step && <span className="step-badge">{step}</span>}
                   <div className="gname ellipsis">{node.kind === 'dir' ? `${node.name}/` : node.name}</div>
                   <div className="muted ellipsis small">{node.description || node.path}</div>
                   <div className="muted ellipsis small">

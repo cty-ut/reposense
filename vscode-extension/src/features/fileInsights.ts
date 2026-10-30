@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { Backend } from '../backend/api';
 import { HistoryDecorator } from '../editor/historyDecorations';
 import { PlanDecorator } from '../editor/planDecorations';
-import { FileInsight, FromFileView, PlanEvent, ToFileView } from '../shared/protocol';
+import { FileInsight, FileTab, FromFileView, PlanEvent, ToFileView } from '../shared/protocol';
 import { webviewHtml, webviewOptions } from './webviewHtml';
 
 interface FileState {
@@ -17,6 +17,7 @@ export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disp
   private view?: vscode.WebviewView;
   private current?: FileState;
   private repo: string | null = null;
+  private pendingTab?: FileTab;  // asked for before the view existed
   private readonly subs: vscode.Disposable[] = [];
 
   constructor(
@@ -37,6 +38,13 @@ export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disp
   }
 
   /** Called by the hover's "查看详情" link. */
+  /** Reveal the view on a given tab (e.g. "分析" after "打开并分析这个文件" on the map). */
+  async showTab(tab: FileTab): Promise<void> {
+    await vscode.commands.executeCommand('reposense.file.focus');
+    if (this.view) this.post({ type: 'tab', tab });
+    else this.pendingTab = tab;
+  }
+
   async showCommit(sha: string): Promise<void> {
     await vscode.commands.executeCommand('reposense.file.focus');
     this.post({ type: 'focus', sha });
@@ -160,6 +168,8 @@ export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disp
   private async onMessage(m: FromFileView): Promise<void> {
     switch (m.type) {
       case 'ready':
+        if (this.pendingTab) this.post({ type: 'tab', tab: this.pendingTab });
+        this.pendingTab = undefined;
         if (!this.current) await this.track(vscode.window.activeTextEditor);
         else await this.sendFile();
         break;

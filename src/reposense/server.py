@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 from reposense.agent.contribution import AgentConfig, ContributionAgent
 from reposense.analysis import (dependencies, file_history, file_insight, file_summaries, opportunities,
-                                structure)
+                                reading_path, structure)
 from reposense.config import settings
 from reposense.core.cache import JsonCache
 from reposense.core.github import GitHubClient
@@ -93,6 +93,15 @@ class Session:
             on_progress=lambda done, total: self.notify(
                 "progress", {"task": "summaries", "message": "Describing files…", "percent": round(100 * done / total)}))
 
+    def repo_reading_path(self, refresh: bool = False) -> dict:
+        # analysis modules do not call each other: the inputs are computed (and cached) here
+        ws, llm = self._require_repo(), self._llm_or_fail()
+        self.notify("progress", {"task": "reading_path", "message": "Planning a reading order…"})
+        deps = dependencies.build_dependencies(ws, self.cache)
+        summaries = file_summaries.build_summaries(ws, llm, self.cache, lang=self.lang)["summaries"]
+        return reading_path.build_reading_path(ws, llm, self.cache, head=deps["head"], edges=deps["edges"],
+                                               summaries=summaries, lang=self.lang, refresh=refresh)
+
     def file_history(self, path: str, limit: int = 10) -> dict:
         return file_history.file_history(self._require_repo(), path, self.gh, limit=limit)
 
@@ -121,7 +130,7 @@ class Session:
 METHODS = {
     "config.check": "config_check", "repo.clone": "repo_clone", "repo.open": "repo_open",
     "repo.structure": "repo_structure", "repo.dependencies": "repo_dependencies",
-    "repo.summaries": "repo_summaries",
+    "repo.summaries": "repo_summaries", "repo.readingPath": "repo_reading_path",
     "file.history": "file_history", "commit.detail": "commit_detail",
     "file.insight": "file_insight", "file.opportunities": "file_opportunities", "issue.plan": "issue_plan",
 }
