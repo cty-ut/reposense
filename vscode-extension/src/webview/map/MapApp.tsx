@@ -15,6 +15,9 @@ export function MapApp() {
   const [mode, setMode] = useState<ColorMode>('size');
   const [activePath, setActivePath] = useState<string | null>(null);
   const [hover, setHover] = useState<{ node: MapNode; x: number; y: number } | null>(null);
+  // The sidebar keeps the last hovered node after the mouse leaves the map, so its buttons stay reachable.
+  const [inspected, setInspected] = useState<MapNode | null>(null);
+  useEffect(() => setInspected(null), [stack]);
 
   useHostMessages(useCallback((m: ToMapView) => {
     if (m.type === 'structure') {
@@ -72,8 +75,11 @@ export function MapApp() {
           </header>
           <div className="map-body">
             <Treemap focus={focus} layerKinds={layerKinds} mode={mode} activePath={activePath} onZoom={zoom} onOpenFile={openFile}
-                     onHover={(node, x, y) => setHover(node ? { node, x: x!, y: y! } : null)} />
-            <MapSidebar structure={structure} node={hover?.node ?? focus} layerKinds={layerKinds} onZoom={zoom} onOpenFile={openFile} />
+                     onHover={(node, x, y) => {
+                       setHover(node ? { node, x: x!, y: y! } : null);
+                       if (node) setInspected(node);
+                     }} />
+            <MapSidebar structure={structure} node={inspected ?? focus} layerKinds={layerKinds} onZoom={zoom} onOpenFile={openFile} />
           </div>
           {hover && (
             <div className="tooltip" style={{ left: Math.min(hover.x + 14, window.innerWidth - 330), top: hover.y + 14 }}>
