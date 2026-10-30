@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import re
+
 from reposense.core.git import Git
 from reposense.core.workspace import Workspace
 
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".eot", ".pdf",
                  ".zip", ".gz", ".lock", ".min.js", ".map", ".pyc", ".so", ".dll", ".exe", ".bin"}
 MAX_FILES = 20_000
+# keep in sync with isTestFile in vscode-extension/src/webview/map/graphLayout.ts
+_TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec|testing)/|(^|/)test_[^/]+\.py$|_test\.(py|go)$"
+                        r"|\.(test|spec)\.[cm]?[jt]sx?$")
+
+
+def is_test_path(path: str) -> bool:
+    return bool(_TEST_PATH.search(path))
 
 
 def is_skipped(path: str) -> bool:
