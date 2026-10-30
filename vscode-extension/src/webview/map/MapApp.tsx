@@ -1,12 +1,13 @@
 // Repository map page: breadcrumb navigation, map/graph switch, the active view and the details sidebar.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Dependencies, FromMapView, Load, MapNode, RepoStructure, ToMapView } from '../../shared/protocol';
+import { Dependencies, FileSummaries, FromMapView, Load, MapNode, RepoStructure, ToMapView } from '../../shared/protocol';
 import { Loadable } from '../components/ui';
 import { compact } from '../format';
 import { post, useHostMessages } from '../vscodeApi';
 import { DependencyGraph } from './DependencyGraph';
 import { DependencyIndex } from './graphLayout';
 import { MapSidebar } from './MapSidebar';
+import { indexById, withSummaries } from './tree';
 import { ColorMode, Relations, Treemap } from './Treemap';
 
 const send = (m: FromMapView) => post(m);
@@ -15,7 +16,9 @@ type View = 'map' | 'graph';
 export function MapApp() {
   const [load, setLoad] = useState<Load<RepoStructure>>({ state: 'loading', message: '正在准备…' });
   const [deps, setDeps] = useState<Load<Dependencies>>({ state: 'idle' });
-  const [stack, setStack] = useState<MapNode[]>([]);
+  const [summaries, setSummaries] = useState<Load<FileSummaries>>({ state: 'idle' });
+  // Node ids, not nodes: the tree is rebuilt when the file descriptions arrive.
+  const [stack, setStack] = useState<string[]>([]);
   const [view, setView] = useState<View>('map');
   const [mode, setMode] = useState<ColorMode>('size');
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -27,9 +30,11 @@ export function MapApp() {
   useHostMessages(useCallback((m: ToMapView) => {
     if (m.type === 'structure') {
       setLoad(m.value);
-      if (m.value.state === 'ready') setStack([m.value.data.root]);
+      if (m.value.state === 'ready') setStack([m.value.data.root.id]);
     } else if (m.type === 'dependencies') {
       setDeps(m.value);
+    } else if (m.type === 'summaries') {
+      setSummaries(m.value);
     } else if (m.type === 'activeFile') {
       setActivePath(m.path);
     }
@@ -44,6 +49,14 @@ export function MapApp() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [stack.length]);
+
+  const structure = useMemo<RepoStructure | null>(() => {
+    if (load.state !== 'ready') return null;
+    return summaries.state === 'ready' ? { ...load.data, root: withSummaries(load.data.root, summaries.data.summaries) } : load.data;
+  }, [load, summaries]);
+  const byId = useMemo(() => (structure ? indexById(structure.root) : new Map<string, MapNode>()), [structure]);
+  // keep hovered/inspected nodes in sync with the rebuilt tree
+  const fresh = (n: MapNode | null) => (n ? byId.get(n.id) ?? n : null);
 
   const layerKinds = useMemo(() => {
     const kinds: Record<string, string> = {};
@@ -65,7 +78,7 @@ export function MapApp() {
 
   const zoom = (node: MapNode) => {
     if (node.kind === 'file' || !node.children?.length) return;
-    setStack((s) => [...s, node]);  // single-directory chains are folded by the views themselves
+    setStack((s) => [...s, node.id]);  // single-directory chains are folded by the views themselves
   };
   const openFile = (path: string) => send({ type: 'openFile', path });
   const onHover = (node: MapNode | null, x?: number, y?: number) => {
@@ -74,14 +87,16 @@ export function MapApp() {
   };
 
   return (
-    <Loadable load={load} onRetry={() => send({ type: 'refresh' })} render={(structure) => {
-      const focus = stack[stack.length - 1] ?? structure.root;
+    <Loadable load={load} onRetry={() => send({ type: 'refresh' })} render={() => {
+      if (!structure) return null;
+      const focus = byId.get(stack[stack.length - 1]) ?? structure.root;
+      const shown = fresh(inspected) ?? focus;
       return (
         <div className="map-app">
           <header className="map-top">
             <span className="map-title">{structure.repo}</span>
             <nav className="crumbs grow">
-              {stack.map((n, i) => (
+              {stack.map((id, i) => byId.get(id)).filter((n): n is MapNode => !!n).map((n, i) => (
                 <span key={n.id} className="row" style={{ gap: 2 }}>
                   {i > 0 && <span className="muted">›</span>}
                   <button className={`crumb${i === stack.length - 1 ? ' current' : ''}`} onClick={() => setStack(stack.slice(0, i + 1))}>
@@ -100,6 +115,8 @@ export function MapApp() {
               <button className={view === 'map' ? 'on' : ''} onClick={() => setView('map')}>地图</button>
               <button className={view === 'graph' ? 'on' : ''} onClick={() => setView('graph')}>关系图</button>
             </div>
+            {summaries.state === 'loading' && <span className="muted small">{summaries.message}</span>}
+            {summaries.state === 'error' && <span className="muted small" title={summaries.message}>文件说明生成失败</span>}
             <button className="btn icon" title="重新分析" onClick={() => send({ type: 'refresh' })}>⟳</button>
           </header>
           <div className="map-body">
@@ -110,13 +127,13 @@ export function MapApp() {
               <DependencyGraph focus={focus} layerKinds={layerKinds} index={index}
                                onZoom={zoom} onOpenFile={openFile} onHover={onHover} />
             )}
-            <MapSidebar structure={structure} node={inspected ?? focus} layerKinds={layerKinds} deps={deps} index={index}
+            <MapSidebar structure={structure} node={shown} layerKinds={layerKinds} deps={deps} index={index}
                         onZoom={zoom} onOpenFile={openFile} />
           </div>
           {hover && (
             <div className="tooltip" style={{ left: Math.min(hover.x + 14, window.innerWidth - 330), top: hover.y + 14 }}>
               <b>{hover.node.name}</b>
-              {hover.node.description && <div>{hover.node.description}</div>}
+              {fresh(hover.node)?.description && <div>{fresh(hover.node)!.description}</div>}
               <div className="muted">
                 {compact(hover.node.lines)} 行 · {hover.node.files} 个文件 · 近一年 {hover.node.churn} 次改动
               </div>

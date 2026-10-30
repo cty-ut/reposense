@@ -109,7 +109,7 @@ export interface Layout {
   height: number;
 }
 
-export const NODE_W = 180;
+export const NODE_W = 215;
 export const NODE_H = 58;
 const RANK_GAP = { LR: 72, TB: 46 };  // between ranks, along the direction of the arrows
 const SIBLING_GAP = { LR: 14, TB: 16 };  // between nodes of the same rank

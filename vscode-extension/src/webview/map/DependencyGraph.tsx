@@ -6,7 +6,7 @@ import { layerColor, USED_BY_COLOR, USES_COLOR, withAlpha } from '../../shared/p
 import { MapNode } from '../../shared/protocol';
 import { compact } from '../format';
 import { aggregate, Direction, DependencyIndex, layered, Layout, NODE_H, NODE_W, Placed } from './graphLayout';
-import { collapse } from './Treemap';
+import { collapse } from './tree';
 import { useSize } from './useSize';
 
 const PAD = 28;

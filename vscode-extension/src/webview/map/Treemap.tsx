@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { layerColor, withAlpha } from '../../shared/palette';
 import { MapNode } from '../../shared/protocol';
 import { compact } from '../format';
+import { collapse } from './tree';
 import { useSize } from './useSize';
 
 export type ColorMode = 'size' | 'churn';
@@ -31,13 +32,6 @@ interface Props {
 }
 
 type Rect = HierarchyRectangularNode<MapNode>;
-
-/** A node whose only child is a directory (layer "测试" → tests/) shows that directory's contents directly. */
-export function collapse(n: MapNode): MapNode {
-  let inner = n;
-  while (inner.children?.length === 1 && inner.children[0].kind === 'dir') inner = inner.children[0];
-  return inner === n ? n : { ...n, path: inner.path, children: inner.children };
-}
 
 function contains(node: MapNode, path: string | null): boolean {
   if (!path) return false;
@@ -134,6 +128,11 @@ export function Treemap({ focus, layerKinds, mode, activePath, relations, onZoom
                 {box.height > 36 && box.width > 70 && (
                   <div className="muted ellipsis">
                     {mode === 'churn' ? `${n.churn} 次改动` : `${compact(n.lines)} 行`}
+                  </div>
+                )}
+                {big && n.description && box.height > 70 && (
+                  <div className="leaf-desc" style={{ WebkitLineClamp: Math.min(4, Math.floor((box.height - 54) / 16)) }}>
+                    {n.description}
                   </div>
                 )}
               </div>

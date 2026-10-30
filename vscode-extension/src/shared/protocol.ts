@@ -39,6 +39,14 @@ export interface Dependencies {
   edges: DependencyEdge[];
 }
 
+/** One-line description per file path. */
+export interface FileSummaries {
+  summaries: Record<string, string>;
+  dropped: number;
+  skipped: number;
+  failed_batches: number;
+}
+
 export interface FileCommit {
   sha: string;
   short: string;
@@ -174,6 +182,7 @@ export type Load<T> = { state: 'idle' } | { state: 'loading'; message?: string }
 export type ToMapView =
   | { type: 'structure'; value: Load<RepoStructure> }
   | { type: 'dependencies'; value: Load<Dependencies> }
+  | { type: 'summaries'; value: Load<FileSummaries> }
   | { type: 'activeFile'; path: string | null };
 
 /** Map panel: webview → host */
