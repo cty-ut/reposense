@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from reposense import __version__
-from reposense.config import settings
+from reposense.config import load_env_file, settings
 
 console = Console()
 
@@ -21,10 +21,14 @@ console = Console()
 @click.group()
 @click.version_option(version=__version__, prog_name="reposense")
 @click.option("-v", "--verbose", is_flag=True, help="Enable debug logging.")
-def cli(verbose: bool) -> None:
+@click.pass_context
+def cli(ctx: click.Context, verbose: bool) -> None:
     """RepoSense — get from a GitHub issue to your first merged PR."""
     logging.basicConfig(level=logging.DEBUG if verbose else logging.WARNING,
                         format="%(name)s %(levelname)s: %(message)s")
+    # `serve` runs inside cloned repositories: their .env must not configure it (see config.py)
+    if ctx.invoked_subcommand != "serve":
+        load_env_file()
 
 
 @cli.command()

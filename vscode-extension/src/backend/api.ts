@@ -30,7 +30,9 @@ export class Backend implements vscode.Disposable {
         const env: NodeJS.ProcessEnv = {};
         if (this.keys.github) env.GITHUB_TOKEN = this.keys.github;
         if (this.keys.deepseek) env.DEEPSEEK_API_KEY = this.keys.deepseek;
-        return { ...this.program(), cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(), env };
+        // Never run inside the opened repository: nothing in it (e.g. a .env) may configure the backend.
+        // The repository is passed explicitly with `repo.open`.
+        return { ...this.program(), cwd: extensionPath, env };
       },
       (method, params) => {
         if (method === 'progress') this.progressListeners.forEach((l) => l(params));
