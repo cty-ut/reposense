@@ -11,6 +11,7 @@ interface FileState {
   path: string;
   uri: vscode.Uri;
   insight?: FileInsight;
+  insightRequest?: Promise<FileInsight>;  // shared by repeated requests while the model is still reading
 }
 
 export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -76,7 +77,9 @@ export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disp
       return;
     }
     this.post({ type: 'file', path: file.path, repo: this.repo });
-    await Promise.all([this.loadHistory(file), this.loadInsight(file, false)]);
+    // History is git + GitHub only. The analysis calls the model, so the webview asks for it (`loadInsight`)
+    // only when its tab is visible: browsing files must not cost a model call per file.
+    await this.loadHistory(file);
   }
 
   private isCurrent(file: FileState): boolean {
@@ -98,8 +101,12 @@ export class FileInsightsView implements vscode.WebviewViewProvider, vscode.Disp
 
   private async loadInsight(file: FileState, refresh: boolean): Promise<void> {
     this.post({ type: 'insight', value: { state: 'loading', message: '模型正在阅读这个文件…' } });
+    if (refresh || !file.insightRequest) {
+      file.insightRequest = this.backend.fileInsight(file.path, refresh);
+      file.insightRequest.catch(() => (file.insightRequest = undefined));  // allow a retry after an error
+    }
     try {
-      const data = await this.backend.fileInsight(file.path, refresh);
+      const data = await file.insightRequest;
       if (!this.isCurrent(file)) return;
       file.insight = data;
       this.post({ type: 'insight', value: { state: 'ready', data } });

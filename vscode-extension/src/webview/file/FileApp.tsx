@@ -39,6 +39,11 @@ export function FileApp() {
 
   useEffect(() => send({ type: 'ready' }), []);
 
+  // The analysis costs a model call: request it only once its tab is actually open for this file.
+  useEffect(() => {
+    if (path && tab === 'insight' && insight.state === 'idle') send({ type: 'loadInsight' });
+  }, [path, tab, insight.state]);
+
   const select = (sha: string | null) => {
     setSelected(sha);
     send({ type: 'focusCommit', sha });
