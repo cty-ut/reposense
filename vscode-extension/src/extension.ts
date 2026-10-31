@@ -10,7 +10,7 @@ import { RepoMapPanel } from './features/repoMap';
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const root = () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
-  const backend = new Backend(context.secrets);
+  const backend = new Backend(context.secrets, context.extensionPath);
   await backend.loadKeys();
   const history = new HistoryDecorator();
   const plans = new PlanDecorator();

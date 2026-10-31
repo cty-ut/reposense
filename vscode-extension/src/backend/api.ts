@@ -1,4 +1,6 @@
 // Typed facade over the backend RPC methods. Features call this, never RpcClient directly.
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   CommitDetail, Dependencies, FileHistory, FileInsight, FileSummaries, Opportunities, ReadingPath, PlanEvent, PlanResult, RepoStructure,
@@ -18,18 +20,17 @@ export class Backend implements vscode.Disposable {
   private keys: { github?: string; deepseek?: string } = {};
   readonly output = vscode.window.createOutputChannel('RepoSense');
 
-  constructor(private readonly secrets: vscode.SecretStorage) {
+  /** The executable built by packaging/build_backend.py, shipped inside platform-specific .vsix files. */
+  readonly bundledPath: string;
+
+  constructor(private readonly secrets: vscode.SecretStorage, extensionPath: string) {
+    this.bundledPath = path.join(extensionPath, 'bin', process.platform === 'win32' ? 'reposense-backend.exe' : 'reposense-backend');
     this.rpc = new RpcClient(
       () => {
-        const cfg = vscode.workspace.getConfiguration('reposense');
         const env: NodeJS.ProcessEnv = {};
         if (this.keys.github) env.GITHUB_TOKEN = this.keys.github;
         if (this.keys.deepseek) env.DEEPSEEK_API_KEY = this.keys.deepseek;
-        return {
-          python: cfg.get<string>('pythonPath', 'python'),
-          cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
-          env,
-        };
+        return { ...this.program(), cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(), env };
       },
       (method, params) => {
         if (method === 'progress') this.progressListeners.forEach((l) => l(params));
@@ -37,6 +38,21 @@ export class Backend implements vscode.Disposable {
       },
       (line) => this.output.appendLine(line),
     );
+  }
+
+  /** An explicit `reposense.pythonPath` wins (running from source); otherwise the bundled backend. */
+  private program(): { program: string; args: string[] } {
+    const python = vscode.workspace.getConfiguration('reposense').get<string>('pythonPath', '').trim();
+    if (python) return { program: python, args: ['-m', 'reposense', 'serve'] };
+    if (this.usesBundled) {
+      if (process.platform !== 'win32') fs.chmodSync(this.bundledPath, 0o755);  // unzipping may drop the exec bit
+      return { program: this.bundledPath, args: [] };
+    }
+    return { program: 'python', args: ['-m', 'reposense', 'serve'] };
+  }
+
+  get usesBundled(): boolean {
+    return !vscode.workspace.getConfiguration('reposense').get<string>('pythonPath', '').trim() && fs.existsSync(this.bundledPath);
   }
 
   async loadKeys(): Promise<void> {

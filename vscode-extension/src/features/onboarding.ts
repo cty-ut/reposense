@@ -41,9 +41,11 @@ export class Onboarding {
         return true;
       } catch (err) {
         this.backend.output.appendLine(String((err as Error).message));
-        const choice = await vscode.window.showErrorMessage(
-          'RepoSense could not start its Python backend. Select the Python interpreter where `reposense` is installed '
-          + '(pip install -e <reposense repo>).', { modal: true }, 'Select Python…');
+        const choice = await vscode.window.showErrorMessage(this.backend.usesBundled
+          ? 'RepoSense could not start its backend (details in the "RepoSense" output). You can instead run it from '
+            + 'source: select a Python interpreter where `reposense` is installed.'
+          : 'RepoSense could not start its Python backend. Select the Python interpreter where `reposense` is installed '
+            + '(pip install -e <reposense repo>).', { modal: true }, 'Select Python…');
         if (choice !== 'Select Python…') return false;
         const picked = await vscode.window.showOpenDialog({
           canSelectFiles: true, canSelectMany: false, openLabel: 'Use this Python',

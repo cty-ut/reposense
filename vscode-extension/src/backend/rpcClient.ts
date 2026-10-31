@@ -1,4 +1,5 @@
-// Starts `python -m reposense serve` and talks JSON-RPC 2.0 over its stdin/stdout (one JSON per line).
+// Starts the backend (bundled executable or `python -m reposense serve`) and talks JSON-RPC 2.0 over its
+// stdin/stdout (one JSON per line).
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; method: string };
@@ -12,7 +13,7 @@ export class RpcClient {
   private stderrTail = '';
 
   constructor(
-    private readonly command: () => { python: string; cwd: string; env: NodeJS.ProcessEnv },
+    private readonly command: () => { program: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv },
     private readonly onNotification: NotificationHandler,
     private readonly log: (line: string) => void,
   ) {}
@@ -22,9 +23,9 @@ export class RpcClient {
   }
 
   start(): void {
-    const { python, cwd, env } = this.command();
-    this.log(`starting backend: ${python} -m reposense serve (cwd ${cwd})`);
-    const proc = spawn(python, ['-m', 'reposense', 'serve'], {
+    const { program, args, cwd, env } = this.command();
+    this.log(`starting backend: ${[program, ...args].join(' ')} (cwd ${cwd})`);
+    const proc = spawn(program, args, {
       cwd, env: { ...process.env, ...env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
     });
     this.proc = proc;
@@ -40,7 +41,7 @@ export class RpcClient {
       this.pending.clear();
       if (this.proc === proc) this.proc = undefined;
     };
-    proc.on('error', (err) => fail(`Cannot start Python "${python}": ${err.message}`));
+    proc.on('error', (err) => fail(`Cannot start the backend "${program}": ${err.message}`));
     proc.on('exit', (code) => fail(`Backend exited (code ${code}).`));
   }
 
