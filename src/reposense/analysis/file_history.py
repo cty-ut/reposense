@@ -43,9 +43,17 @@ def file_history(ws: Workspace, path: str, gh: GitHubClient | None, limit: int =
         owned.setdefault(b.sha, []).append(b.line)
 
     recent = {c.sha for c in commits}
+    # PR numbers: from the subject when the project writes them there, otherwise one batched GitHub lookup
+    prs = {c.sha: pr_from_subject(c.subject) for c in commits}
+    unknown = [sha for sha, pr in prs.items() if pr is None]
+    if unknown and gh is not None:
+        try:
+            prs.update(gh.prs_for_commits(unknown))
+        except Exception:  # GitHub unavailable: history still works without PR links
+            pass
     items = []
     for i, c in enumerate(commits):
-        pr = _pr_number(c.sha, c.subject, gh)
+        pr = prs[c.sha]
         lines = owned.get(c.sha, [])
         items.append({
             "sha": c.sha, "short": c.sha[:8], "author": c.author, "email": c.email, "date": c.date,

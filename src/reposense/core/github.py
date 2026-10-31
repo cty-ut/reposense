@@ -109,5 +109,47 @@ class GitHubClient:
             return {"pr": merged[0]["number"] if merged else None}
         return self._cached("commit_pr", sha, compute)["pr"]
 
+    def prs_for_commits(self, shas: list[str]) -> dict[str, int | None]:
+        """`pr_for_commit` for many commits with one GraphQL request instead of one REST call each.
+
+        Shares the `commit_pr` cache with `pr_for_commit`. Falls back to REST when GraphQL is unavailable
+        (it needs a token) or fails.
+        """
+        found: dict[str, int | None] = {}
+        missing = []
+        for sha in dict.fromkeys(shas):
+            hit = self.cache.get("commit_pr", sha) if self.cache is not None and not self.cutoff else None
+            if hit is not None:
+                found[sha] = hit["pr"]
+            else:
+                missing.append(sha)
+        if not missing:
+            return found
+        try:
+            fetched = self._graphql_commit_prs(missing)
+        except (httpx.HTTPError, KeyError, TypeError, ValueError):
+            return {**found, **{sha: self.pr_for_commit(sha) for sha in missing}}
+        for sha, pr in fetched.items():
+            if self.cache is not None and not self.cutoff:
+                self.cache.set("commit_pr", sha, {"pr": pr})
+        return {**found, **fetched}
+
+    def _graphql_commit_prs(self, shas: list[str]) -> dict[str, int | None]:
+        owner, name = self.repo.split("/")
+        # shas come from `git log`, so they are plain hex and safe to inline
+        fields = "\n".join(
+            f'c{i}: object(oid: "{sha}") {{ ... on Commit {{ associatedPullRequests(first: 5) '
+            f'{{ nodes {{ number mergedAt }} }} }} }}' for i, sha in enumerate(shas))
+        query = f"query($owner: String!, $name: String!) {{ repository(owner: $owner, name: $name) {{ {fields} }} }}"
+        r = self.http.post("/graphql", json={"query": query, "variables": {"owner": owner, "name": name}})
+        r.raise_for_status()
+        repo = r.json()["data"]["repository"]
+        out: dict[str, int | None] = {}
+        for i, sha in enumerate(shas):
+            nodes = ((repo.get(f"c{i}") or {}).get("associatedPullRequests") or {}).get("nodes") or []
+            merged = [n for n in nodes if n.get("mergedAt")] or nodes  # same choice as pr_for_commit
+            out[sha] = merged[0]["number"] if merged else None
+        return out
+
     def close(self) -> None:
         self.http.close()
