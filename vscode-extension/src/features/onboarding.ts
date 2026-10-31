@@ -87,11 +87,17 @@ export class Onboarding {
       { label: '$(key) Paste a personal access token', id: 'pat' },
     ], { title: 'RepoSense (1/2): GitHub access — needed to read pull requests and reviews', ignoreFocusOut: true });
     if (pick?.id === 'session') {
-      const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+      // Reading public pull requests, reviews and issues needs no repository permission: any signed-in
+      // token works (and gets the authenticated rate limit). Never ask for `repo` (full control of
+      // private repositories) just to read public data.
+      const session = await vscode.authentication.getSession('github', ['read:user'], { createIfNone: true });
       return session?.accessToken;
     }
     if (pick?.id === 'pat') {
-      return (await vscode.window.showInputBox({ prompt: 'GitHub token', password: true, ignoreFocusOut: true }))?.trim();
+      return (await vscode.window.showInputBox({
+        prompt: 'GitHub token. Public repositories need no scopes; only private repositories need "repo".',
+        password: true, ignoreFocusOut: true,
+      }))?.trim();
     }
     return undefined;
   }

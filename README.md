@@ -45,7 +45,7 @@ code --install-extension reposense-0.2.0.vsix
 
 首次使用时，扩展会依次引导：
 
-1. **GitHub 授权**：直接用 VS Code 的 GitHub 账号登录。
+1. **GitHub 授权**：直接用 VS Code 的 GitHub 账号登录，只申请读取个人资料的权限（`read:user`），不会申请访问你仓库的权限。要分析私有仓库时，改为粘贴一个带 `repo` 权限的 token。
 2. **填写 DeepSeek API Key**：存入 VS Code 的加密存储，不写进任何文件。
 3. **输入想贡献的仓库链接**。克隆完成后 VS Code 会打开这个文件夹；如果顶部出现 Restricted Mode 提示，点 **Trust** 信任它，RepoSense 才会运行。
 
