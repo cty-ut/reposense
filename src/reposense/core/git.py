@@ -22,8 +22,9 @@ def pr_from_subject(subject: str) -> int | None:
 def run(root: Path, *args: str, check: bool = True) -> str:
     # stdin=DEVNULL everywhere we spawn: under `reposense serve` stdin is the JSON-RPC pipe, and on
     # Windows a child that inherits a pipe with a pending read blocks at startup until the next request.
+    # core.quotepath=off: print non-ASCII paths as UTF-8 instead of "\346\226\207..." in quotes.
     proc = subprocess.run(
-        ["git", "-C", str(root), *args],
+        ["git", "-c", "core.quotepath=off", "-C", str(root), *args],
         stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if check and proc.returncode != 0:
