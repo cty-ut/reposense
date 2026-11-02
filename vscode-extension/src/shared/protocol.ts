@@ -15,6 +15,8 @@ export interface MapNode {
   files: number;
   churn: number;
   language?: string | null;
+  /** Files only: computed by the backend (reposense.core.files), the single home of the test rules. */
+  is_test?: boolean;
   languages?: Record<string, number>;
   children?: MapNode[];
 }

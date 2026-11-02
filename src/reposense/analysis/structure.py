@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from reposense.core.cache import JsonCache
-from reposense.core.files import tracked_files
+from reposense.core.files import test_paths, tracked_files
 from reposense.core.git import Git
 from reposense.core.llm import LLM
 from reposense.core.workspace import Workspace
@@ -51,6 +51,7 @@ class _Node:
     lines: int = 0
     churn: int = 0
     language: str | None = None
+    is_test: bool = False
     children: dict[str, "_Node"] = field(default_factory=dict)
 
 
@@ -69,11 +70,13 @@ def _count_lines(ws: Workspace, path: str) -> int:
 
 
 def collect_files(ws: Workspace) -> list[dict]:
-    """Tracked text files with line count, language and 12-month change count."""
+    """Tracked text files with line count, language, 12-month change count and test flag."""
     git = Git(ws.root)
     churn = git.churn("12 months ago")
     files = tracked_files(ws)
-    return [{"path": f, "lines": _count_lines(ws, f), "churn": churn.get(f, 0), "language": _language(f)}
+    tests = test_paths(files)
+    return [{"path": f, "lines": _count_lines(ws, f), "churn": churn.get(f, 0), "language": _language(f),
+             "is_test": f in tests}
             for f in files]
 
 
@@ -153,7 +156,8 @@ def _build_tree(files: list[dict], base: str = "") -> _Node:
         for i, part in enumerate(parts[:-1]):
             node = node.children.setdefault(part, _Node(name=part, path="/".join(parts[: i + 1])))
         node.children[parts[-1]] = _Node(name=parts[-1], path=f["path"], is_file=True, lines=f["lines"],
-                                         churn=f["churn"], language=f["language"])
+                                         churn=f["churn"], language=f["language"],
+                                         is_test=f.get("is_test", False))
     return root
 
 
@@ -172,7 +176,8 @@ def _collapse(node: _Node) -> _Node:
 def _to_json(node: _Node, layer: str, modules: dict[str, str]) -> dict:
     if node.is_file:
         return {"id": node.path, "name": node.name, "path": node.path, "kind": "file", "layer": layer,
-                "lines": node.lines, "files": 1, "churn": node.churn, "language": node.language}
+                "lines": node.lines, "files": 1, "churn": node.churn, "language": node.language,
+                "is_test": node.is_test}
     children = sorted((_to_json(c, layer, modules) for c in node.children.values()),
                       key=lambda c: (c["kind"] == "file", -c["lines"]))
     langs = Counter()
