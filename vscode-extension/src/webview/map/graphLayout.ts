@@ -7,17 +7,16 @@ export interface Related {
   weight: number;
 }
 
-const TEST_PATH = [/(^|\/)(tests?|__tests__|spec|testing)\//, /(^|\/)test_[^/]+\.py$/, /_test\.(py|go)$/, /\.(test|spec)\.[cm]?[jt]sx?$/];
-
-export function isTestFile(path: string): boolean {
-  return TEST_PATH.some((re) => re.test(path));
-}
-
 export class DependencyIndex {
   private readonly out = new Map<string, Map<string, number>>();
   private readonly in = new Map<string, Map<string, number>>();
 
-  constructor(edges: DependencyEdge[]) {
+  /**
+   * `tests` is the set of test-file paths flagged by the backend (MapNode.is_test): the test
+   * rules live only in reposense.core.files, so a package's own test framework (django/test/)
+   * is not mistaken for tests here either.
+   */
+  constructor(edges: DependencyEdge[], private readonly tests: ReadonlySet<string> = new Set()) {
     for (const e of edges) {
       add(this.out, e.source, e.target, e.weight);
       add(this.in, e.target, e.source, e.weight);
@@ -31,12 +30,12 @@ export class DependencyIndex {
 
   /** Non-test files that import this file. */
   usedBy(path: string): Related[] {
-    return sorted(this.in.get(path)).filter((r) => !isTestFile(r.path));
+    return sorted(this.in.get(path)).filter((r) => !this.tests.has(r.path));
   }
 
   /** Test files that import this file: the tests to run after changing it. */
   testedBy(path: string): Related[] {
-    return sorted(this.in.get(path)).filter((r) => isTestFile(r.path));
+    return sorted(this.in.get(path)).filter((r) => this.tests.has(r.path));
   }
 
   outgoing(path: string): Map<string, number> | undefined {

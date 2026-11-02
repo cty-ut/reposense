@@ -16,7 +16,7 @@ from collections import Counter
 from pathlib import PurePosixPath
 
 from reposense.core.cache import JsonCache
-from reposense.core.files import is_test_path
+from reposense.core.files import test_paths
 from reposense.core.llm import LLM
 from reposense.core.workspace import Workspace
 
@@ -56,7 +56,8 @@ def find_definition(text: str, name: str) -> int | None:
 def candidates(edges: list[dict], summaries: dict[str, str], lines_of: dict[str, int]) -> list[dict]:
     imported_by = Counter(e["target"] for e in edges)
     imports = Counter(e["source"] for e in edges)
-    files = [p for p in lines_of if PurePosixPath(p).suffix in CODE_SUFFIXES and not is_test_path(p)]
+    tests = test_paths(lines_of)
+    files = [p for p in lines_of if PurePosixPath(p).suffix in CODE_SUFFIXES and p not in tests]
     # files many others import come first; size breaks ties
     files.sort(key=lambda p: -(2 * imported_by[p] + math.log1p(lines_of[p])))
     return [{"path": p, "description": summaries.get(p, ""), "lines": lines_of[p],

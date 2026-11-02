@@ -71,7 +71,21 @@ export function MapApp() {
     return kinds;
   }, [load]);
 
-  const index = useMemo(() => (deps.state === 'ready' ? new DependencyIndex(deps.data.edges) : null), [deps]);
+  // Test flags come from the backend (is_test on file nodes), never from a local path pattern.
+  const testPaths = useMemo(() => {
+    const out = new Set<string>();
+    if (load.state === 'ready') {
+      const walk = (n: MapNode) => {
+        if (n.kind === 'file' && n.is_test) out.add(n.path);
+        n.children?.forEach(walk);
+      };
+      walk(load.data.root);
+    }
+    return out;
+  }, [load]);
+
+  const index = useMemo(() => (deps.state === 'ready' ? new DependencyIndex(deps.data.edges, testPaths) : null),
+    [deps, testPaths]);
 
   const relations = useMemo<Relations | null>(() => {
     if (!index || inspected?.kind !== 'file') return null;
