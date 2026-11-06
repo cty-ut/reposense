@@ -19,13 +19,15 @@ def pr_from_subject(subject: str) -> int | None:
     return int(m.group(1) or m.group(2)) if m else None
 
 
-def run(root: Path, *args: str, check: bool = True) -> str:
-    # stdin=DEVNULL everywhere we spawn: under `reposense serve` stdin is the JSON-RPC pipe, and on
-    # Windows a child that inherits a pipe with a pending read blocks at startup until the next request.
+def run(root: Path, *args: str, check: bool = True, input: str | None = None) -> str:
+    # Never inherit stdin: under `reposense serve` it is the JSON-RPC pipe, and on Windows a child that
+    # inherits a pipe with a pending read blocks at startup until the next request. `input` gets a
+    # fresh pipe of its own.
     # core.quotepath=off: print non-ASCII paths as UTF-8 instead of "\346\226\207..." in quotes.
     proc = subprocess.run(
         ["git", "-c", "core.quotepath=off", "-C", str(root), *args],
-        stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
+        input=input, stdin=subprocess.DEVNULL if input is None else None,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if check and proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(args[:3])} failed: {proc.stderr.strip()[:300]}")
@@ -65,6 +67,20 @@ class Git:
 
     def ls_files(self) -> list[str]:
         return [f for f in run(self.root, "ls-files").splitlines() if f]
+
+    def attributes(self, paths: list[str], names: list[str]) -> dict[str, dict[str, str]]:
+        """gitattributes `names` of each path, as git resolves them (nested .gitattributes included).
+
+        Values are "set", "unset", "unspecified" or the attribute's value.
+        """
+        if not paths:
+            return {}
+        out = run(self.root, "check-attr", "-z", "--stdin", *names, input="\0".join(paths) + "\0")
+        fields = out.split("\0")
+        attrs: dict[str, dict[str, str]] = {}
+        for path, name, value in zip(fields[0::3], fields[1::3], fields[2::3]):
+            attrs.setdefault(path, {})[name] = value
+        return attrs
 
     def file_log(self, path: str, limit: int = 10) -> list[Commit]:
         """Latest commits touching `path` (following renames), newest first, with line stats."""
