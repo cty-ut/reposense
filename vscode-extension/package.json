@@ -28,30 +28,75 @@
   },
   "contributes": {
     "commands": [
-      { "command": "reposense.start", "title": "Open a GitHub Repository…", "category": "RepoSense", "icon": "$(repo-clone)" },
-      { "command": "reposense.openMap", "title": "Show Repository Map", "category": "RepoSense", "icon": "$(type-hierarchy)" },
-      { "command": "reposense.refreshMap", "title": "Re-analyze Repository Structure", "category": "RepoSense" },
-      { "command": "reposense.setKeys", "title": "Set API Keys", "category": "RepoSense" },
-      { "command": "reposense.restartBackend", "title": "Restart Backend", "category": "RepoSense" },
-      { "command": "reposense.showCommit", "title": "Show Commit Details", "category": "RepoSense" }
+      {
+        "command": "reposense.start",
+        "title": "Open a GitHub Repository…",
+        "category": "RepoSense",
+        "icon": "$(repo-clone)"
+      },
+      {
+        "command": "reposense.openMap",
+        "title": "Show Repository Map",
+        "category": "RepoSense",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "reposense.refreshMap",
+        "title": "Re-analyze Repository Structure",
+        "category": "RepoSense"
+      },
+      {
+        "command": "reposense.setKeys",
+        "title": "Set API Keys",
+        "category": "RepoSense"
+      },
+      {
+        "command": "reposense.restartBackend",
+        "title": "Restart Backend",
+        "category": "RepoSense"
+      },
+      {
+        "command": "reposense.showCommit",
+        "title": "Show Commit Details",
+        "category": "RepoSense"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
-        { "id": "reposense", "title": "RepoSense", "icon": "media/icon.svg" }
+        {
+          "id": "reposense",
+          "title": "RepoSense",
+          "icon": "media/icon.svg"
+        }
       ]
     },
     "views": {
       "reposense": [
-        { "id": "reposense.file", "name": "File Insights", "type": "webview" }
+        {
+          "id": "reposense.file",
+          "name": "File Insights",
+          "type": "webview"
+        }
       ]
     },
     "menus": {
       "view/title": [
-        { "command": "reposense.openMap", "when": "view == reposense.file", "group": "navigation@1" },
-        { "command": "reposense.start", "when": "view == reposense.file", "group": "navigation@2" }
+        {
+          "command": "reposense.openMap",
+          "when": "view == reposense.file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reposense.start",
+          "when": "view == reposense.file",
+          "group": "navigation@2"
+        }
       ],
       "commandPalette": [
-        { "command": "reposense.showCommit", "when": "false" }
+        {
+          "command": "reposense.showCommit",
+          "when": "false"
+        }
       ]
     },
     "configuration": {
@@ -86,6 +131,7 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit -p ./",
+    "test": "vitest run",
     "build:backend": "python ../packaging/build_backend.py",
     "package": "npm run typecheck && npm run build && vsce package --allow-missing-repository --skip-license"
   },
@@ -102,6 +148,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.23.1",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.7"
   }
 }

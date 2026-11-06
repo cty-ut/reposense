@@ -65,8 +65,11 @@ reposense plan https://github.com/<owner>/<repo>/issues/<n>     # 针对单个 I
 ```bash
 pytest                                       # 后端离线测试：用临时 git 仓库和假模型，不需要网络和 key
 cd vscode-extension && npm run typecheck     # 扩展类型检查
+npm test                                     # 前端纯逻辑的单元测试（关系图布局等）
 npm run watch                                # 修改界面时自动重新打包
 ```
+
+每个 PR 都会在 GitHub Actions 上自动运行以上测试（`.github/workflows/test.yml`）。
 
 ## 状态与限制
 
