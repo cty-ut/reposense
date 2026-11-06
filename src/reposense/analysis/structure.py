@@ -28,6 +28,7 @@ LANGUAGES = {
 }
 LAYER_KINDS = ["frontend", "backend", "core", "cli", "api", "data", "tests", "docs", "examples", "infra",
                "tooling", "other"]
+MAX_OVERVIEW = 400  # directories sent to the model (~60k characters)
 
 SYSTEM = """You are mapping the architecture of a code repository for a newcomer.
 Group the given paths into 3-8 architecture layers, and describe the important modules.
@@ -97,12 +98,16 @@ def _dir_overview(files: list[dict], depth: int = 3) -> list[dict]:
         if len(parts) == 1:  # top-level files are candidates too
             stats[f["path"]] = {"path": f["path"], "files": 1, "lines": f["lines"], "languages": Counter(),
                                 "samples": []}
-    out = []
-    for s in sorted(stats.values(), key=lambda s: s["path"]):
-        if s["files"] >= 1:
-            out.append({"path": s["path"], "files": s["files"], "lines": s["lines"],
-                        "languages": [lang for lang, _ in s["languages"].most_common(3)], "samples": s["samples"]})
-    return out[:400]
+    # Every top-level entry is always included: anything below it is assigned to its layer by prefix,
+    # so a missing top-level directory would be missing from the map's layers altogether. The rest of
+    # the budget goes to shallower directories first, bigger ones first within a depth.
+    top = [s for s in stats.values() if "/" not in s["path"]]
+    deeper = sorted((s for s in stats.values() if "/" in s["path"]),
+                    key=lambda s: (s["path"].count("/"), -s["lines"], s["path"]))
+    chosen = top + deeper[:max(0, MAX_OVERVIEW - len(top))]
+    return [{"path": s["path"], "files": s["files"], "lines": s["lines"],
+             "languages": [lang for lang, _ in s["languages"].most_common(3)], "samples": s["samples"]}
+            for s in sorted(chosen, key=lambda s: s["path"])]
 
 
 def _heuristic_layers(files: list[dict]) -> dict:
