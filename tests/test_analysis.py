@@ -74,3 +74,14 @@ def test_suggestions_need_a_real_anchor(ws, tmp_path):
     r = opportunities.code_suggestions(ws, "src/pkg/core.py", llm, JsonCache("acme/pkg", root=tmp_path / "c"))
     assert [s["title"] for s in r["suggestions"]] == ["good"]
     assert len(r["dropped"]) == 1
+
+
+def test_overview_keeps_every_top_level_directory():
+    # 500 subdirectories under "aaa" used to fill the 400-entry budget before "zzz" was reached (#12)
+    files = [{"path": f"aaa/m{i:03}/x.py", "lines": 1, "language": "Python"} for i in range(500)]
+    files += [{"path": "aaa/big/core.py", "lines": 5000, "language": "Python"},
+              {"path": "zzz/main.py", "lines": 10, "language": "Python"}, {"path": "setup.py", "lines": 3, "language": "Python"}]
+    paths = [o["path"] for o in structure._dir_overview(files)]
+    assert len(paths) == structure.MAX_OVERVIEW
+    assert {"aaa", "zzz", "setup.py", "aaa/big"} <= set(paths)  # top level always, then the biggest
+    assert paths == sorted(paths)
